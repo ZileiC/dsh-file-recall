@@ -333,6 +333,10 @@ test('client half is a loadable harness module with panel and sidebar surfaces',
   assert.match(source, /require\('react'\)/)
   assert.match(source, /name: 'main'/)
   assert.match(source, /'sidebar\.panellist'/)
+  // The recall animation belongs in the conversation, so the client must claim
+  // its own Tool view keyed by the wire tool name.
+  assert.match(source, /'tool\.call\.toolview'/)
+  assert.match(source, /key: 'file_recall_search'/)
   assert.match(source, /dfr-metrics/)
   assert.match(source, /prefers-reduced-motion/)
   assert.doesNotMatch(source, /<html|iframe/)
