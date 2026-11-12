@@ -105,14 +105,16 @@ test('plugin apply registers the tools and the runtime skill', async () => {
     assert.match(skills[0].content, /空态处理/)
     assert.match(skills[0].content, /file_recall_evidence/)
 
-    // The tidy skill must pair with a read-only tool: its body has to state the
-    // no-execution boundary, otherwise the model may promise a move it cannot do.
+    // The tidy skill must pair with the gated tool: its body has to state the
+    // approval gate and the vault protection, otherwise the model may move
+    // files, or rename inside an Obsidian vault, without the user noticing.
     const tidySkill = skills.find((skill) => skill.name === 'file-tidy')
     assert.ok(tidySkill, 'file-tidy skill was not registered')
     assert.equal(tidySkill.source, 'runtime')
-    assert.match(tidySkill.content, /只能出方案/)
-    assert.match(tidySkill.content, /不许说「已经整理好」/)
-    assert.match(tidySkill.content, /观测|mtime/)
+    assert.match(tidySkill.content, /confirm: true/)
+    assert.match(tidySkill.content, /dryRun: false/)
+    assert.match(tidySkill.content, /Obsidian vault/)
+    assert.match(tidySkill.content, /undo/)
 
     const indexTool = tools.find((tool) => tool.name === 'file_recall_index')
     const status = await indexTool.execute({ action: 'status' }, {})

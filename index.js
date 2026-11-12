@@ -6,7 +6,7 @@
  *   skill: file-recall
  */
 
-import { mkdirSync, renameSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join, dirname } from 'node:path'
 
 import { normalizeConfig, resolveDbPath } from './lib/config.js'
@@ -23,6 +23,7 @@ import { createActivityLog } from './lib/activity.js'
 import { createOutcomeResolver } from './lib/outcome.js'
 import { createGraphBuilder } from './lib/graph.js'
 import { createTidyPlanner } from './lib/tidy.js'
+import { createApplier, journalPathFor } from './lib/apply.js'
 import { registerUiRoutes, ROUTE_PATH as UI_ROUTE_PATH } from './lib/ui-routes.js'
 
 export const name = 'file-recall'
@@ -320,6 +321,21 @@ export function apply(ctx, rawConfig = {}) {
       const target = join(targetDir, name)
       writeFileSync(target, content, 'utf8')
       return target
+    },
+    /**
+     * Execution is deliberately reachable only through the persisted plan: what
+     * runs must be what the user was shown, not a recomputation.
+     */
+    applier: createApplier(),
+    journalPath: dbPath === ':memory:' ? join(dirname(dbPath), 'tidy-journal.jsonl') : journalPathFor(dirname(dbPath)),
+    loadPlan() {
+      if (dbPath === ':memory:') return null
+      const target = join(dirname(dbPath), 'tidy-plan.json')
+      try {
+        return JSON.parse(readFileSync(target, 'utf8'))
+      } catch (error) {
+        return null
+      }
     },
   }
 
