@@ -36,12 +36,16 @@ M1 功能完成：抽取 / OCR（含扫描 PDF 页面栅格化）/ 分批建库 
   "roots": ["/Users/<你爸的用户名>/Documents/资料"],
   "excludeGlobs": ["**/node_modules/**"],
   "topK": 8,
-  "ocr": { "enabled": true, "provider": "auto", "langs": ["chi_sim"] },
-  "expansion": { "enabled": false }
+  "ocr": { "mode": "lazy", "provider": "auto", "langs": ["chi_sim"] },
+  "expansion": { "enabled": true }
 }
 ```
 
-- `expansion.enabled` 默认 **false**（不把用户 query 发给模型）；打开后只发送 query，不发送文档正文。
+- `ocr.mode`：`lazy`（默认，建库只抽文本、扫描页登记待处理，**按需识别**）/ `eager`（建库时就识别）/ `off`。
+  **懒 OCR 是给大库用的**：一个几万文件的杂乱目录，用 eager 建库要花几小时，lazy 只要几分钟就能先搜起来。
+  代价是**扫描页在被识别前对内容检索不可见**（文件名和文件夹照样能搜到）。需要时：
+  `file_recall_evidence { path, page }` 当场识别那一页，或 `file_recall_index { action: "ocr", maxFiles: 10 }` 分批预热。
+- `expansion.enabled` 默认 **true**（用当前默认模型改写模糊描述，只发 query，不发文档正文）；不需要可显式设 false。
 - `roots` 为空时索引工具只会报 0 个文件；可以：
   - 在配置里填 `roots`（持久、优先）；或
   - 让 agent 调用 `file_recall_index action="configure" roots=["..."] confirm=true`（会清理旧 roots 之外的索引，写入本地 meta，重启后仍生效，直到配置里显式覆盖）。
