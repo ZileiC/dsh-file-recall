@@ -42,6 +42,11 @@ function openStoreWithRecovery(dbPath) {
 }
 
 export function apply(ctx, rawConfig = {}) {
+  // Latest context seen by any of this plugin's forks. Injected services appear
+  // on the fork's context, not on the apply-time one, so lazy resolution reads
+  // from here.
+  let liveCtx = ctx
+
   const config = normalizeConfig(rawConfig)
   const dbPath = resolveDbPath(config)
   if (dbPath !== ':memory:') mkdirSync(dirname(dbPath), { recursive: true })
@@ -84,23 +89,60 @@ export function apply(ctx, rawConfig = {}) {
     dbPath,
   })
 
-  let expander = null
-  if (config.expansion.enabled) {
+  // Query expansion resolves the model LAZILY, on the first search.
+  //
+  // Same trap as webServer: reading `llm` / `agentDefaultModel` during apply()
+  // misses services the host activates afterwards, which left every search
+  // reporting "no query expander configured". The search service re-reads
+  // `expanderHolder.current` on every call, so filling it later is enough.
+  const expanderHolder = { current: null, probed: false, reason: null }
+  function resolveExpander(readCtx) {
+    if (expanderHolder.probed) return expanderHolder.current
+    expanderHolder.probed = true
+    if (!config.expansion.enabled) {
+      expanderHolder.reason = 'query expansion is disabled'
+      return null
+    }
     try {
-      const llm = ctx.get?.('llm')
-      const selection = ctx.get?.('agentDefaultModel')?.currentSelection?.()
+      const llm = readCtx.llm ?? readCtx.get?.('llm')
+      const modelService = readCtx.agentDefaultModel ?? readCtx.get?.('agentDefaultModel')
+      const selection = modelService?.currentSelection?.()
       const provider = config.expansion.provider || selection?.provider
       const model = config.expansion.model || selection?.model
-      if (llm && provider && model) expander = createLlmExpander({ llm, provider, model })
-    } catch {
-      expander = null
+      if (!llm) {
+        expanderHolder.reason = 'llm service unavailable'
+        return null
+      }
+      if (!provider || !model) {
+        expanderHolder.reason = 'no default model selection'
+        return null
+      }
+      expanderHolder.current = createLlmExpander({ llm, provider, model })
+      expanderHolder.reason = null
+    } catch (error) {
+      expanderHolder.current = null
+      expanderHolder.reason = error instanceof Error ? error.message : String(error)
     }
+    return expanderHolder.current
   }
+
+  // Retry resolution on later services; `probed` only sticks on success or a
+  // real answer, so a search before `llm` starts is not permanently degraded.
+  //
+  // The search service calls the expander as a plain function
+  // (`expander({ query, hints, signal })`), so this must be callable, not an
+  // object with an `expand` method.
+  async function expander({ query, hints, signal }) {
+    const active = expanderHolder.current ?? resolveExpander(liveCtx)
+    if (!active) throw new Error(expanderHolder.reason ?? 'no query expander configured')
+    return active({ query, hints, signal })
+  }
+  const expanderForSearch = config.expansion.enabled ? expander : null
 
   const learning = createLearningService({ store })
   const search = createSearchService({
     store,
-    expander,
+    expander: expanderForSearch,
     learning,
     expandTimeoutMs: config.expansion.timeoutMs,
     defaultTopK: config.topK,
@@ -144,7 +186,26 @@ export function apply(ctx, rawConfig = {}) {
   const uiState = { status: 'waiting', path: UI_ROUTE_PATH, error: null }
   const uiStatus = () => ({ ...uiState })
 
-  const definitions = createToolDefinitions({ store, search, indexer, learning, ocrStatus, uiStatus })
+  // Expansion diagnostics: what the plugin actually resolved, and why not.
+  const expansionStatus = () => ({
+    enabled: config.expansion.enabled,
+    active: Boolean(expanderHolder.current),
+    reason: expanderHolder.reason,
+    probed: expanderHolder.probed,
+    configured: config.expansion.provider
+      ? `${config.expansion.provider}/${config.expansion.model || '(default)'}`
+      : 'auto (agentDefaultModel)',
+  })
+
+  const definitions = createToolDefinitions({
+    store,
+    search,
+    indexer,
+    learning,
+    ocrStatus,
+    uiStatus,
+    expansionStatus,
+  })
   for (const definition of definitions) {
     ctx.effect(
       () => ctx.tools.register(definition),
@@ -189,7 +250,25 @@ export function apply(ctx, rawConfig = {}) {
   }
 
   if (typeof ctx.inject === 'function') {
-    ctx.inject(['webServer'], mountUiRoutes)
+    // `llm` and `agentDefaultModel` are the expander's inputs; taking them by
+    // injection keeps the fork context (and `liveCtx`) pointed at a context
+    // that actually carries them.
+    ctx.inject(['webServer'], (web) => {
+      liveCtx = web
+      mountUiRoutes(web)
+    })
+    ctx.inject(['llm', 'agentDefaultModel'], (modelCtx) => {
+      liveCtx = modelCtx
+      expanderHolder.probed = false
+      resolveExpander(modelCtx)
+      modelCtx.effect(
+        () => () => {
+          expanderHolder.current = null
+          expanderHolder.probed = false
+        },
+        'file-recall: expander',
+      )
+    })
   } else {
     // Carriers without the scoped-inject helper: try once, never abort loading.
     const webServer = ctx.get?.('webServer')
