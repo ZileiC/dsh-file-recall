@@ -20,6 +20,7 @@ import { createOcrService } from './lib/ocr/provider.js'
 import { createSkillRegistration } from './lib/skill.js'
 import { createActivityLog } from './lib/activity.js'
 import { createOutcomeResolver } from './lib/outcome.js'
+import { createGraphBuilder } from './lib/graph.js'
 import { registerUiRoutes, ROUTE_PATH as UI_ROUTE_PATH } from './lib/ui-routes.js'
 
 export const name = 'file-recall'
@@ -254,8 +255,7 @@ export function apply(ctx, rawConfig = {}) {
 
   // What the plugin has learned so far — visible from one tool call, so "memory"
   // is never a claim without evidence.
-  const memoryStatus = () => {
-    try {
+  const memoryStatus = () => {    try {
       const stats = store.queryOutcomeStats()
       return {
         ...stats,
@@ -266,6 +266,10 @@ export function apply(ctx, rawConfig = {}) {
       return null
     }
   }
+
+  // The panel's folder graph. Built from the files table plus settled recalls;
+  // never renders the whole archive at once.
+  const graph = createGraphBuilder({ store })
 
   const definitions = createToolDefinitions({
     store,
@@ -300,7 +304,7 @@ export function apply(ctx, rawConfig = {}) {
       return
     }
     try {
-      const dispose = registerUiRoutes({ webServer, indexer, store, ocrStatus, activity, memoryStatus })
+      const dispose = registerUiRoutes({ webServer, indexer, store, ocrStatus, activity, memoryStatus, graph })
       uiState.status = 'registered'
       uiState.error = null
       web.effect(

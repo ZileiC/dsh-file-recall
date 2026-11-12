@@ -188,6 +188,15 @@ try {
   assert.ok(Array.isArray(feed.events) && feed.events.length > 0, 'activity feed is empty')
   assert.equal(feed.events[0].query, '部门预算的说明')
   assert.ok(Array.isArray(feed.events[0].terms))
+
+  // Folder-first graph: two loose files at the root, both currently indexed.
+  const graph = await (
+    await route.resource(new Request('http://127.0.0.1/api/file-recall/graph'))
+  ).json()
+  assert.equal(graph.totals.files, 2)
+  assert.ok(Array.isArray(graph.nodes))
+  assert.ok(graph.nodes.length >= 1, 'graph returned no nodes for an indexed archive')
+  report.graph = { nodes: graph.nodes.length, edges: graph.edges.length, totals: graph.totals }
   // The tool-level marker is the only way to diagnose a dead panel without host
   // logs, so the bundle must report it from the same state the route used.
   const toolStatus = await tools
