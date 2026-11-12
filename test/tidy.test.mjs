@@ -1,8 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, readdirSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 
 import { openStore } from '../lib/store.js'
 import { createTidyPlanner } from '../lib/tidy.js'
@@ -57,7 +57,8 @@ test('camera names get a date prefix, and a name the user chose is never rewritt
       assert.match(fileName, /^\d{4}-\d{2}-\d{2}_/)
       assert.ok(fileName.endsWith(original), 'original name preserved')
       assert.deepEqual(toParts.slice(0, -1), fromParts.slice(0, -1), 'folder unchanged')
-      assert.equal(action.confidence, 'medium')
+      assert.equal(action.confidence, 'low', 'mtime is the weakest date source')
+      assert.equal(action.dateSource, 'mtime')
       assert.match(action.reason, /自动命名/)
     }
     assert.ok(!renames.some((action) => action.from.includes('note-unrelated')))
@@ -246,6 +247,75 @@ test('the fishbone renders a standalone SVG with the head and every branch', () 
   assert.match(svg, /<\/svg>$/)
   // No raw ampersands: XML would be invalid.
   assert.doesNotMatch(svg, /&(?!(amp|lt|gt|quot);)/)
+})
+
+test('a date the author wrote in the content beats the file mtime', () => {
+  const { store, done } = makeStore()
+  try {
+    // mtime is 2023-05-01; the note says it was written 2021-09-14.
+    addFile(store, 'D:\\vault\\IMG_7788.jpg', MAY_2023)
+    store.replaceChunks('D:\\vault\\IMG_7788.jpg', [
+      { kind: 'ocr', page: 1, text: '---\ndate: 2021-09-14\n---\n课堂板书照片' },
+    ])
+
+    const planner = createTidyPlanner({ store, looseRootThreshold: 99 })
+    const plan = planner.plan({ roots: [ROOT] })
+    const rename = plan.actions.find((action) => action.kind === 'rename')
+
+    assert.ok(rename, 'a machine name should still be renamed')
+    assert.match(rename.to, /2021-09-14_/)
+    assert.equal(rename.dateSource, 'content')
+    assert.equal(rename.confidence, 'medium')
+  } finally {
+    done()
+  }
+})
+
+test('an Obsidian vault is move-only until the caller opts in', () => {
+  const { store, done } = makeStore()
+  const root = join(mkdtempSync(join(tmpdir(), 'vault-detect-')), 'vault')
+  try {
+    mkdirSync(join(root, '.obsidian'), { recursive: true })
+    addFile(store, join(root, 'IMG_9001.jpg'))
+    addFile(store, join(root, 'loose notes.md'))
+
+    const guarded = createTidyPlanner({ store })
+    const guardedPlan = guarded.plan({ roots: [root] })
+    assert.equal(guardedPlan.actions.filter((action) => action.kind === 'rename').length, 0)
+    assert.ok(guardedPlan.notes.some((note) => /Obsidian vault/.test(note)))
+
+    const allowed = createTidyPlanner({ store, allowVaultRename: true })
+    const allowedPlan = allowed.plan({ roots: [root] })
+    assert.equal(allowedPlan.actions.filter((action) => action.kind === 'rename').length, 1)
+  } finally {
+    done()
+    rmSync(dirname(root), { recursive: true, force: true })
+  }
+})
+
+test('the per-file detail names each target and hides the rest with counts', () => {
+  const { store, done } = makeStore()
+  try {
+    addFile(store, 'D:\\vault\\Ⅱ 26 Fall\\1077 Chinese communication\\Notes\\IMG_1001.jpg')
+    addFile(store, 'D:\\vault\\Ⅱ 26 Fall\\1077 Chinese communication\\Notes\\IMG_1002.jpg')
+    addFile(store, 'D:\\vault\\Ⅱ 26 Fall\\1077 Chinese communication\\Slides\\lecture.pdf')
+    addFile(store, 'D:\\vault\\Ⅱ 26 Fall\\1077 Chinese communication\\Slides\\IMG_1003.png')
+
+    const planner = createTidyPlanner({ store })
+    const detail = planner.detail({ roots: [ROOT], ticksPerKind: 1 })
+
+    assert.equal(detail.totals.files, 4)
+    const view = detail.views.find((entry) => entry.top === 'Ⅱ 26 Fall')
+    assert.ok(view, 'the semester is its own view')
+    const notes = view.kinds.find((kind) => kind.kind === 'notes')
+    assert.equal(notes.count, 2)
+    assert.equal(notes.files.length, 1, 'ticks are capped')
+    assert.equal(notes.hidden, 1)
+    assert.ok(notes.files[0].targetDir.endsWith('notes'))
+    assert.equal(detail.renameAllowed, true)
+  } finally {
+    done()
+  }
 })
 
 test('the fishbone escapes markup in labels', () => {
