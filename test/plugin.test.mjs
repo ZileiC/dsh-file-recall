@@ -11,35 +11,64 @@ import { API_VERSION } from '../lib/ui-routes.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
-function fakeContext() {
+/**
+ * Cordis-faithful fake: a started service is a context property, a not-yet
+ * started one is absent, and `inject` parks the fork until it appears. The old
+ * helper handed `webServer` out through `get()` at apply time, which is why the
+ * plugin-level 404 regression was invisible to this file.
+ */
+function fakeContext({ deferWebServer = false } = {}) {
   const tools = []
   const skills = []
   const disposers = []
-  return {
-    ctx: {
-      get() {
-        return undefined
-      },
-      effect(callback) {
-        const disposer = callback()
-        if (typeof disposer === 'function') disposers.push(disposer)
-        return disposer
-      },
-      tools: {
-        register(definition) {
-          tools.push(definition)
-          return () => {}
-        },
-      },
-      skills: {
-        register(definition) {
-          skills.push(definition)
-          return () => {}
-        },
+  const routes = []
+  const parked = []
+  const webServer = {
+    register(route) {
+      routes.push(route)
+      return () => {}
+    },
+  }
+  const ctx = {
+    get(name) {
+      return ctx[name]
+    },
+    inject(dependencies, callback) {
+      if (deferWebServer && dependencies.includes('webServer')) {
+        parked.push(callback)
+        return
+      }
+      callback(ctx)
+    },
+    effect(callback) {
+      const disposer = callback()
+      if (typeof disposer === 'function') disposers.push(disposer)
+      return disposer
+    },
+    tools: {
+      register(definition) {
+        tools.push(definition)
+        return () => {}
       },
     },
+    skills: {
+      register(definition) {
+        skills.push(definition)
+        return () => {}
+      },
+    },
+  }
+  if (!deferWebServer) ctx.webServer = webServer
+  return {
+    ctx,
     tools,
     skills,
+    routes,
+    parked,
+    ready() {
+      ctx.webServer = webServer
+      for (const callback of parked.splice(0)) callback(ctx)
+    },
     dispose() {
       for (const disposer of disposers.reverse()) {
         try {
@@ -212,20 +241,22 @@ test('configure prunes files outside the new roots', async () => {
 
 test('plugin registers read-only UI routes when an HTTP server is present', async () => {
   const dir = mkdtempSync(join(tmpdir(), 'file-recall-routes-'))
-  const registered = []
-  const { ctx, dispose } = fakeContext()
-  ctx.get = (name) =>
-    name === 'webServer'
-      ? {
-          register(route) {
-            registered.push(route)
-            return () => {}
-          },
-        }
-      : undefined
+  // The host starts webServer after this plugin, so the route must arrive late.
+  const { ctx, tools, routes, parked, ready, dispose } = fakeContext({ deferWebServer: true })
   try {
     apply(ctx, { dbPath: join(dir, 'index.db'), roots: [], expansion: { enabled: false }, ocr: { enabled: false } })
+    assert.equal(routes.length, 0, 'route registered before webServer was ready')
+    assert.equal(parked.length, 1, 'no inject fork parked for webServer')
+    ready()
+    const registered = routes
     assert.equal(registered.length, 1)
+    // The one-shot `ctx.get('webServer')` this replaced reported 'waiting'
+    // forever in the live host; the tool must now report the real state.
+    const toolStatus = await tools
+      .find((tool) => tool.name === 'file_recall_index')
+      .execute({ action: 'status' }, {})
+    assert.equal(toolStatus.ui.status, 'registered')
+    assert.equal(toolStatus.ui.path, '/api/file-recall')
     assert.equal(registered[0].kind, 'prefix')
     assert.equal(registered[0].path, '/api/file-recall')
     // Must be a WebResourceRoute: the handler form is Node (req, res), and
