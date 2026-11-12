@@ -48,3 +48,15 @@
 - 查看历史：`{ action: "list" }`；查看学到的词：`{ action: "synonyms" }`
 
 学到的同义词只存在本地，并会在下次搜索时以 `appliedSynonyms` 标出来源。
+
+**不要为了记反馈而追问。** 插件已经按对话走向自动推断：用户接着追问/换说法重问 = 上一条没找到；转去问别的 = 上一条算找对了；用户沉默则不记。你只在用户**开口表态**时才调用，例如「对，就是这页」→ `hit`，「不是这个」→ `wrong`。
+
+两种来源在库里分开：`stated`（用户说的）才会进入同义词表，`inferred`（推断的）只用于统计。这防止插件靠自己的猜测越学越偏。
+
+## 记忆与记忆层
+
+`file_recall_index { action: "status" }` 的 `memory` 字段是这块的唯一事实来源：`total / pending / hit / wrong / partial / stated / inferred / synonyms / feedback`。
+
+- 用户问「你是不是记住了什么 / 用起来会变准吗」：读 `memory` 回答，不要空口承诺。
+- `total` 很大但 `stated` 很小 = 记忆主要靠推断，说明数据可信度有限，如实说。
+
