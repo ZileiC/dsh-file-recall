@@ -339,6 +339,10 @@ test('client half is a loadable harness module with panel and sidebar surfaces',
   assert.match(source, /key: 'file_recall_search'/)
   // The unmissable seat: full-width strip above the composer.
   assert.match(source, /'conversation\.input\.dock'/)
+  // The strip is dismissible but has no replay control: the animation is a
+  // notice, not a toy.
+  assert.match(source, /'dock\.dismiss'/)
+  assert.doesNotMatch(source, /signal\.replay/)
   assert.match(source, /dfr-metrics/)
   assert.match(source, /prefers-reduced-motion/)
   assert.doesNotMatch(source, /<html|iframe/)
