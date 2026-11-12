@@ -1,0 +1,4 @@
+- insert:
+    - id: file-recall
+      name: dsh-file-recall
+      config: {}
