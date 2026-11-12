@@ -311,6 +311,16 @@ export function apply(ctx, rawConfig = {}) {
       writeFileSync(target, JSON.stringify(plan, null, 2), 'utf8')
       return target
     },
+    // The fishbone the user approves BEFORE anything moves. Also written next to
+    // the index so it never lands inside the archive being proposed about.
+    saveArtifact(name, content) {
+      if (dbPath === ':memory:') return null
+      const targetDir = dirname(dbPath)
+      mkdirSync(targetDir, { recursive: true })
+      const target = join(targetDir, name)
+      writeFileSync(target, content, 'utf8')
+      return target
+    },
   }
 
   const definitions = createToolDefinitions({
