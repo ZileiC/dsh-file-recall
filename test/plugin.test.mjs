@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url'
 
 import { apply } from '../index.js'
 import { createSkillRegistration } from '../lib/skill.js'
+import { API_VERSION } from '../lib/ui-routes.js'
 
 const here = dirname(fileURLToPath(import.meta.url))
 
@@ -244,6 +245,15 @@ test('plugin registers read-only UI routes when an HTTP server is present', asyn
     assert.equal(status.status, 200)
     assert.equal(status.body.files, 0)
     assert.equal(status.body.ocr.enabled, false)
+    assert.equal(status.body.apiVersion, API_VERSION, 'the panel rejects a host without this marker')
+
+    const health = await call('GET', '/api/file-recall/health')
+    assert.equal(health.status, 200)
+    assert.deepEqual(health.body, {
+      ok: true,
+      service: 'file-recall',
+      apiVersion: API_VERSION,
+    })
 
     const recent = await call('GET', '/api/file-recall/recent')
     assert.equal(recent.status, 200)
@@ -270,6 +280,17 @@ test('client half is a loadable harness module with panel and sidebar surfaces',
   assert.match(source, /prefers-reduced-motion/)
   assert.doesNotMatch(source, /<html|iframe/)
   new Function(source)
+})
+
+test('client half expects the same API version the host reports', async () => {
+  const source = readFileSync(join(here, '..', 'lib', 'client.js'), 'utf8')
+  const match = source.match(/const EXPECTED_API_VERSION = (\d+)/)
+  assert.ok(match, 'client must declare EXPECTED_API_VERSION')
+  assert.equal(
+    Number(match[1]),
+    API_VERSION,
+    'client and host API versions drifted; bump both together',
+  )
 })
 
 test('skill registration content is complete and model-usable', () => {
