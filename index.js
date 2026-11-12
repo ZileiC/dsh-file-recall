@@ -190,6 +190,7 @@ export function apply(ctx, rawConfig = {}) {
     ...searchService,
     async search(args, exec) {
       const startedAt = Date.now()
+      const sessionId = typeof exec?.sessionId === 'string' ? exec.sessionId : null
       try {
         const result = await searchService.search(args, exec)
         const ms = Date.now() - startedAt
@@ -198,12 +199,13 @@ export function apply(ctx, rawConfig = {}) {
         } catch {
           /* memory is best effort */
         }
-        activity.record({ query: args?.query, result, ms })
+        activity.record({ query: args?.query, result, ms, sessionId })
         return result
       } catch (error) {
         activity.record({
           query: args?.query,
           ms: Date.now() - startedAt,
+          sessionId,
           error: error instanceof Error ? error.message : String(error),
         })
         throw error
