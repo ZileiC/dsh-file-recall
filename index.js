@@ -18,6 +18,7 @@ import { createToolDefinitions } from './lib/tools.js'
 import { createLlmExpander } from './lib/expander.js'
 import { createOcrService } from './lib/ocr/provider.js'
 import { createSkillRegistration } from './lib/skill.js'
+import { registerUiRoutes } from './lib/ui-routes.js'
 
 export const name = 'file-recall'
 
@@ -148,4 +149,17 @@ export function apply(ctx, rawConfig = {}) {
 
   const skill = createSkillRegistration()
   ctx.effect(() => ctx.skills.register(skill), 'file-recall: skill')
+
+  // Client panel data (read-only). Absent in headless carriers.
+  try {
+    const webServer = ctx.get?.('webServer')
+    if (webServer?.register) {
+      ctx.effect(
+        () => registerUiRoutes({ webServer, indexer, store, ocrStatus }),
+        'file-recall: ui routes',
+      )
+    }
+  } catch {
+    // A carrier without an HTTP server simply has no panel.
+  }
 }

@@ -1,11 +1,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 import { apply } from '../index.js'
 import { createSkillRegistration } from '../lib/skill.js'
+
+const here = dirname(fileURLToPath(import.meta.url))
 
 function fakeContext() {
   const tools = []
@@ -204,6 +207,75 @@ test('configure prunes files outside the new roots', async () => {
     rmSync(dirA, { recursive: true, force: true })
     rmSync(dirB, { recursive: true, force: true })
   }
+})
+
+test('plugin registers read-only UI routes when an HTTP server is present', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'file-recall-routes-'))
+  const registered = []
+  const { ctx, dispose } = fakeContext()
+  ctx.get = (name) =>
+    name === 'webServer'
+      ? {
+          register(route) {
+            registered.push(route)
+            return () => {}
+          },
+        }
+      : undefined
+  try {
+    apply(ctx, { dbPath: join(dir, 'index.db'), roots: [], expansion: { enabled: false }, ocr: { enabled: false } })
+    assert.equal(registered.length, 1)
+    assert.equal(registered[0].kind, 'prefix')
+    assert.equal(registered[0].path, '/api/file-recall')
+
+    function call(method, url) {
+      return new Promise((resolve, reject) => {
+        const res = {
+          statusCode: 0,
+          headers: {},
+          body: '',
+          setHeader(name, value) {
+            this.headers[name] = value
+          },
+          end(body) {
+            this.body = body
+            resolve({ status: this.statusCode, body: JSON.parse(body) })
+          },
+        }
+        Promise.resolve(registered[0].handler({ method, url }, res)).catch(reject)
+      })
+    }
+
+    const status = await call('GET', '/api/file-recall/status')
+    assert.equal(status.status, 200)
+    assert.equal(status.body.files, 0)
+    assert.equal(status.body.ocr.enabled, false)
+
+    const recent = await call('GET', '/api/file-recall/recent')
+    assert.equal(recent.status, 200)
+    assert.deepEqual(recent.body.feedback, [])
+
+    const missing = await call('GET', '/api/file-recall/nope')
+    assert.equal(missing.status, 404)
+
+    const rejected = await call('POST', '/api/file-recall/status')
+    assert.equal(rejected.status, 405)
+  } finally {
+    dispose()
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('client half is a loadable harness module with panel and sidebar surfaces', async () => {
+  const source = readFileSync(join(here, '..', 'lib', 'client.js'), 'utf8')
+  assert.match(source, /__ModuleLoader__\.load\(\{/)
+  assert.match(source, /require\('react'\)/)
+  assert.match(source, /name: 'main'/)
+  assert.match(source, /'sidebar\.panellist'/)
+  assert.match(source, /dfr-metrics/)
+  assert.match(source, /prefers-reduced-motion/)
+  assert.doesNotMatch(source, /<html|iframe/)
+  new Function(source)
 })
 
 test('skill registration content is complete and model-usable', () => {
