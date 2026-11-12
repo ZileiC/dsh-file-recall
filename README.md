@@ -51,12 +51,15 @@ M1 功能完成：抽取 / OCR（含扫描 PDF 页面栅格化）/ 分批建库 
 
 ## 验证命令
 
+发布前**必须**跑 `node --test` + `node scripts/install-smoke.mjs`。单测通过不等于插件能用：`install-smoke` 会按 DSH 真实加载路径检查工具、skill、面板路由形态、API 版本标记与浏览器包，任何一项不符直接失败。
+
 ```text
 node --test                 # 单测（数量见 review.md）
+node scripts/install-smoke.mjs  # 安装冒烟：工具 + skill + 路由 + apiVersion + client.js
 node scripts/e2e.mjs        # 真实 fixtures：sync → build → 6 条 gold 查询 → 空态 → evidence
 node scripts/eval.mjs       # 60 条合成 ToT 查询：top-1/top-5/MRR
 node scripts/perf.mjs       # 200 文件 / 1000 chunks 建库与查询 p50/p95
-node scripts/install-smoke.mjs  # 从 profile 链接路径 import 安装包并跑一次真实查询
+node scripts/install-smoke.mjs --entry ../dist/dsh-file-recall/index.js
 node scripts/ocr-selfcheck.mjs test/fixtures/ocr-zh.png auto
 ```
 

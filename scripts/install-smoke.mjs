@@ -7,7 +7,7 @@
  */
 
 import assert from 'node:assert/strict'
-import { copyFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -36,10 +36,17 @@ function fakeContext() {
   const tools = []
   const skills = []
   const disposers = []
+  const routes = []
+  const webServer = {
+    register(route) {
+      routes.push(route)
+      return () => {}
+    },
+  }
   return {
     ctx: {
-      get() {
-        return undefined
+      get(name) {
+        return name === 'webServer' ? webServer : undefined
       },
       effect(callback) {
         const disposer = callback()
@@ -61,6 +68,7 @@ function fakeContext() {
     },
     tools,
     skills,
+    routes,
     dispose() {
       for (const disposer of disposers.reverse()) {
         try {
@@ -74,8 +82,8 @@ function fakeContext() {
 }
 
 const dir = mkdtempSync(join(tmpdir(), 'file-recall-install-'))
-const { ctx, tools, skills, dispose } = fakeContext()
-const report = { entry, tools: [], skill: null, query: null }
+const { ctx, tools, skills, routes, dispose } = fakeContext()
+const report = { entry, tools: [], skill: null, query: null, routes: null, client: null }
 
 try {
   const module = await import(pathToFileURL(entry).href)
@@ -86,7 +94,6 @@ try {
     expansion: { enabled: false },
     ocr: { enabled: false },
   })
-
   report.tools = tools.map((tool) => tool.name).sort()
   report.skill = skills[0]
     ? { name: skills[0].name, source: skills[0].source, hasEvidenceRules: /证据纪律/.test(skills[0].content) }
@@ -126,6 +133,49 @@ try {
     gold: { path: evidence.path, page: evidence.page, locator: evidence.locator },
     quote: evidence.text.slice(0, 60),
   }
+
+  // The panel API must answer from this exact bundle. A WebRoute (handler)
+  // instead of a WebResourceRoute makes the carrier answer 404, which is
+  // exactly what a user sees as "无法连接插件服务".
+  assert.equal(routes.length, 1, 'the UI route was not registered')
+  const route = routes[0]
+  assert.equal(route.kind, 'prefix')
+  assert.equal(route.path, '/api/file-recall')
+  assert.equal(typeof route.resource, 'function', 'route must be a WebResourceRoute')
+  assert.equal(route.handler, undefined, 'route must not use the Node handler form')
+  const response = await route.resource(new Request('http://127.0.0.1/api/file-recall/status'))
+  assert.equal(response.status, 200)
+  const statusBody = await response.json()
+  assert.equal(statusBody.files, 2)
+  assert.ok(statusBody.roots.some((root) => root.endsWith(dir)))
+  report.routes = {
+    kind: route.kind,
+    path: route.path,
+    status: response.status,
+    apiVersion: statusBody.apiVersion,
+    files: statusBody.files,
+    ocrEnabled: statusBody.ocr?.enabled ?? null,
+  }
+  // The panel refuses a host that does not report the API it was built for, so
+  // a missing or stale marker is a release blocker, not a warning.
+  const clientSourceCheck = readFileSync(join(dirname(entry), 'lib', 'client.js'), 'utf8')
+  const expected = Number(
+    (clientSourceCheck.match(/const EXPECTED_API_VERSION = (\d+)/) || [])[1] ?? NaN,
+  )
+  assert.equal(
+    statusBody.apiVersion,
+    expected,
+    'host apiVersion must equal the client EXPECTED_API_VERSION',
+  )
+
+  // The client half must be a loadable harness module declaring both surfaces.
+  const clientPath = join(dirname(entry), 'lib', 'client.js')
+  const clientSource = readFileSync(clientPath, 'utf8')
+  assert.match(clientSource, /__ModuleLoader__\.load\(\{/)
+  assert.match(clientSource, /'sidebar\.panellist'/)
+  assert.match(clientSource, /name: 'main'/)
+  new Function(clientSource)
+  report.client = { path: clientPath, bytes: clientSource.length }
 
   console.log(JSON.stringify(report, null, 2))
 } finally {
