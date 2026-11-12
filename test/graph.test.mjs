@@ -51,7 +51,7 @@ test('splitRelative is prefix-correct and case-insensitive on both separators', 
   assert.equal(splitRelative(ROOT, ROOT), null)
 })
 
-test('top level lists folders only, with aggregates', () => {
+test('the default view spans three levels, each node tagged with its depth', () => {
   const { store, done } = makeStore()
   try {
     seed(store)
@@ -59,25 +59,70 @@ test('top level lists folders only, with aggregates', () => {
     const view = graph.build({ roots: [ROOT] })
 
     assert.equal(view.focus, null)
-    const folders = view.nodes.filter((node) => node.type === 'folder')
-    assert.deepEqual(folders.map((node) => node.name).sort(), ['课程A', '课程B'].sort())
+    assert.equal(view.depth, 3)
 
-    const courseA = folders.find((node) => node.name === '课程A')
+    const level1 = view.nodes.filter((node) => node.depth === 1 && node.type === 'folder')
+    assert.deepEqual(level1.map((node) => node.name).sort(), ['课程A', '课程B'].sort())
+    assert.ok(level1.every((node) => node.parentRel === null), 'level 1 hangs off the root')
+
+    const courseA = level1.find((node) => node.name === '课程A')
     assert.equal(courseA.files, 3)
     assert.equal(courseA.chunks, 6)
     assert.equal(courseA.scanned, 1)
 
-    // Root files are listed as nodes too, not silently dropped.
-    const loose = view.nodes.filter((node) => node.type === 'file')
+    // Level 2 and 3 are what make the archive's shape visible at a glance.
+    const level2 = view.nodes.filter((node) => node.depth === 2)
+    const nested = level2.filter((node) => node.type === 'folder').map((node) => node.name)
+    assert.ok(nested.includes('课件') && nested.includes('笔记'))
+
+    const level3 = view.nodes.filter((node) => node.depth === 3)
+    assert.ok(level3.some((node) => node.type === 'file' && node.name === 'deck.pptx'))
+    assert.ok(level3.every((node) => typeof node.parentRel === 'string' && node.parentRel.length > 0))
+
+    const loose = view.nodes.filter((node) => node.type === 'file' && node.depth === 1)
     assert.deepEqual(loose.map((node) => node.name), ['顶层文件.docx'])
     assert.equal(view.totals.files, 5)
-    assert.equal(view.totals.folders >= 4, true, 'nested folders are counted too')
   } finally {
     done()
   }
 })
 
-test('a focus expands one level and reports its breadcrumb', () => {
+test('depth 1 is still available when only one level is wanted', () => {
+  const { store, done } = makeStore()
+  try {
+    seed(store)
+    const graph = createGraphBuilder({ store })
+    const view = graph.build({ roots: [ROOT], depth: 1 })
+    assert.equal(view.depth, 1)
+    assert.ok(view.nodes.every((node) => node.depth === 1))
+    assert.deepEqual(
+      view.nodes.filter((node) => node.type === 'folder').map((node) => node.name).sort(),
+      ['课程A', '课程B'].sort(),
+    )
+  } finally {
+    done()
+  }
+})
+
+test('each level is capped and the overflow is reported', () => {
+  const { store, done } = makeStore()
+  try {
+    for (let index = 0; index < 8; index += 1) {
+      const path = `D:\\vault\\big\\folder${index}\\f.md`
+      store.upsertFile({ path, size: 1, mtime: 1 })
+      store.replaceChunks(path, [{ kind: 'block', block: 1, text: 'x'.repeat(10) }])
+      store.setFileStatus(path, 'ok')
+    }
+    const graph = createGraphBuilder({ store })
+    const view = graph.build({ roots: [ROOT], perDepth: 3 })
+    assert.equal(view.nodes.filter((node) => node.depth === 2).length, 3)
+    assert.equal(view.hidden['2'], 5)
+  } finally {
+    done()
+  }
+})
+
+test('a focus expands two levels and reports its breadcrumb', () => {
   const { store, done } = makeStore()
   try {
     seed(store)
@@ -87,7 +132,8 @@ test('a focus expands one level and reports its breadcrumb', () => {
     assert.equal(view.focus, '课程A')
     assert.deepEqual(view.breadcrumb, ['课程A'])
     const names = view.nodes.map((node) => node.name).sort()
-    assert.deepEqual(names, ['扫描件 001.pdf', '笔记', '课件'].sort())
+    assert.deepEqual(names, ['deck.pptx', 'note.md', '扫描件 001.pdf', '笔记', '课件'].sort())
+    assert.ok(view.nodes.every((node) => node.depth >= 1 && node.depth <= 2))
     const scanned = view.nodes.find((node) => node.name === '扫描件 001.pdf')
     assert.equal(scanned.type, 'file')
     assert.equal(scanned.kind, 'pdf')
@@ -109,16 +155,22 @@ test('memory edges land on the level-1 folder at the top, and on the file when f
     const top = graph.build({ roots: [ROOT] })
     const targets = top.edges.map((edge) => edge.target).sort()
     assert.equal(targets.length, 2)
-    assert.ok(targets.some((target) => target.endsWith('课程A')))
-    assert.ok(targets.some((target) => target.endsWith('课程B')))
+    // With two levels visible, a recall points at the exact file it landed on.
+    assert.ok(targets.some((target) => target.endsWith('deck.pptx')))
+    assert.ok(targets.some((target) => target.endsWith('IMG_2034.pdf')))
     const wrong = top.edges.find((edge) => edge.outcome === 'wrong')
     assert.equal(wrong.source, 'inferred')
 
-    // In a folder view the same recall points at the file (or its subfolder when
-    // the file sits one level deeper).
+    // It resolves to the node itself inside a folder view too.
     const focused = graph.build({ roots: [ROOT], focus: '课程A' })
     assert.equal(focused.edges.length, 1)
-    assert.match(focused.edges[0].target, /课件$/)
+    assert.match(focused.edges[0].target, /deck\.pptx$/)
+
+    // A single-level view must still draw the recall, on the nearest visible
+    // ancestor folder rather than dropping it.
+    const shallow = graph.build({ roots: [ROOT], depth: 1 })
+    assert.equal(shallow.edges.length, 2)
+    assert.ok(shallow.edges.every((edge) => /课程[AB]$/.test(edge.target)))
   } finally {
     done()
   }
