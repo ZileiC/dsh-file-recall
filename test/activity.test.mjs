@@ -84,6 +84,21 @@ test('a failed search is recorded with its message and error field', () => {
   assert.deepEqual(event.top, [])
 })
 
+test('record keeps the session id so a strip cannot leak between conversations', () => {
+  const log = createActivityLog()
+  const withSession = log.record({
+    query: 'q1',
+    result: searchResult(),
+    sessionId: 'session-a',
+  })
+  const withoutSession = log.record({ query: 'q2', result: searchResult() })
+  assert.equal(withSession.sessionId, 'session-a')
+  assert.equal(withoutSession.sessionId, null)
+  // Long ids are clipped like every other free-text field.
+  const clipped = log.record({ query: 'q3', result: searchResult(), sessionId: 'x'.repeat(200) })
+  assert.ok(clipped.sessionId.length <= 64)
+})
+
 test('returned events are detached copies', () => {
   const log = createActivityLog()
   log.record({ query: 'q', result: searchResult() })
