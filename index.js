@@ -18,6 +18,7 @@ import { createToolDefinitions } from './lib/tools.js'
 import { createLlmExpander } from './lib/expander.js'
 import { createOcrService } from './lib/ocr/provider.js'
 import { createSkillRegistration } from './lib/skill.js'
+import { createActivityLog } from './lib/activity.js'
 import { registerUiRoutes, ROUTE_PATH as UI_ROUTE_PATH } from './lib/ui-routes.js'
 
 export const name = 'file-recall'
@@ -140,13 +141,36 @@ export function apply(ctx, rawConfig = {}) {
   const expanderForSearch = config.expansion.enabled ? expander : null
 
   const learning = createLearningService({ store })
-  const search = createSearchService({
+  const searchService = createSearchService({
     store,
     expander: expanderForSearch,
     learning,
     expandTimeoutMs: config.expansion.timeoutMs,
     defaultTopK: config.topK,
   })
+
+  // Presence signal for the panel: every finished search is recorded so the
+  // browser half can answer "is it doing something right now?". Never persisted,
+  // never able to fail a search.
+  const activity = createActivityLog()
+  const search = {
+    ...searchService,
+    async search(args, exec) {
+      const startedAt = Date.now()
+      try {
+        const result = await searchService.search(args, exec)
+        activity.record({ query: args?.query, result, ms: Date.now() - startedAt })
+        return result
+      } catch (error) {
+        activity.record({
+          query: args?.query,
+          ms: Date.now() - startedAt,
+          error: error instanceof Error ? error.message : String(error),
+        })
+        throw error
+      }
+    },
+  }
 
   async function ocrStatus() {
     if (!config.ocr.enabled) return { enabled: false, provider: null }
@@ -229,7 +253,7 @@ export function apply(ctx, rawConfig = {}) {
       return
     }
     try {
-      const dispose = registerUiRoutes({ webServer, indexer, store, ocrStatus })
+      const dispose = registerUiRoutes({ webServer, indexer, store, ocrStatus, activity })
       uiState.status = 'registered'
       uiState.error = null
       web.effect(
