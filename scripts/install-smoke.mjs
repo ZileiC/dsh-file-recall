@@ -180,6 +180,14 @@ try {
   const statusBody = await response.json()
   assert.equal(statusBody.files, 2)
   assert.ok(statusBody.roots.some((root) => root.endsWith(dir)))
+  // The panel's live signal reads this incremental feed; the tool search below
+  // has already run once, so at least one event must be there.
+  const feed = await (
+    await route.resource(new Request('http://127.0.0.1/api/file-recall/activity?since=0'))
+  ).json()
+  assert.ok(Array.isArray(feed.events) && feed.events.length > 0, 'activity feed is empty')
+  assert.equal(feed.events[0].query, '部门预算的说明')
+  assert.ok(Array.isArray(feed.events[0].terms))
   // The tool-level marker is the only way to diagnose a dead panel without host
   // logs, so the bundle must report it from the same state the route used.
   const toolStatus = await tools

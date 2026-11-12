@@ -284,7 +284,22 @@ test('plugin registers read-only UI routes when an HTTP server is present', asyn
       ok: true,
       service: 'file-recall',
       apiVersion: API_VERSION,
+      features: { activity: true },
     })
+
+    // The panel animation is driven by this incremental feed: a real search must
+    // leave exactly one event, and the cursor must not replay it.
+    const searchTool = tools.find((tool) => tool.name === 'file_recall_search')
+    assert.ok(searchTool, 'search tool missing')
+    await searchTool.execute({ query: '那个预算的说明' }, {})
+    const feed = await call('GET', '/api/file-recall/activity?since=0')
+    assert.equal(feed.status, 200)
+    assert.equal(feed.body.events.length, 1)
+    assert.equal(feed.body.events[0].query, '那个预算的说明')
+    assert.ok(Number.isInteger(feed.body.events[0].id))
+    assert.equal(feed.body.latest, feed.body.events[0].id)
+    const drained = await call('GET', '/api/file-recall/activity?since=' + feed.body.latest)
+    assert.deepEqual(drained.body.events, [])
 
     const recent = await call('GET', '/api/file-recall/recent')
     assert.equal(recent.status, 200)
