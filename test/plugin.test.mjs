@@ -227,23 +227,17 @@ test('plugin registers read-only UI routes when an HTTP server is present', asyn
     assert.equal(registered.length, 1)
     assert.equal(registered[0].kind, 'prefix')
     assert.equal(registered[0].path, '/api/file-recall')
+    // Must be a WebResourceRoute: the handler form is Node (req, res), and
+    // returning a Response from it makes the carrier answer 404.
+    assert.equal(typeof registered[0].resource, 'function')
+    assert.equal(registered[0].handler, undefined)
 
     function call(method, url) {
-      return new Promise((resolve, reject) => {
-        const res = {
-          statusCode: 0,
-          headers: {},
-          body: '',
-          setHeader(name, value) {
-            this.headers[name] = value
-          },
-          end(body) {
-            this.body = body
-            resolve({ status: this.statusCode, body: JSON.parse(body) })
-          },
-        }
-        Promise.resolve(registered[0].handler({ method, url }, res)).catch(reject)
-      })
+      const request = new Request('http://127.0.0.1' + url, { method })
+      return Promise.resolve(registered[0].resource(request)).then(async (response) => ({
+        status: response.status,
+        body: await response.json(),
+      }))
     }
 
     const status = await call('GET', '/api/file-recall/status')
