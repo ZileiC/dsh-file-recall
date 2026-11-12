@@ -305,6 +305,17 @@ test('plugin registers read-only UI routes when an HTTP server is present', asyn
     assert.equal(recent.status, 200)
     assert.deepEqual(recent.body.feedback, [])
 
+    // The graph is folder-first and must answer even on an empty archive.
+    const graph = await call('GET', '/api/file-recall/graph')
+    assert.equal(graph.status, 200)
+    assert.ok(Array.isArray(graph.body.nodes))
+    assert.ok(Array.isArray(graph.body.edges))
+    assert.equal(graph.body.focus, null)
+    assert.equal(graph.body.apiVersion, API_VERSION)
+    const drilled = await call('GET', '/api/file-recall/graph?focus=' + encodeURIComponent('whatever'))
+    assert.equal(drilled.status, 200)
+    assert.equal(drilled.body.focus, 'whatever')
+
     const missing = await call('GET', '/api/file-recall/nope')
     assert.equal(missing.status, 404)
 
