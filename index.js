@@ -46,6 +46,23 @@ function openStoreWithRecovery(dbPath) {
   }
 }
 
+/**
+ * Where this run happens, for scoping the panel's live strip.
+ *
+ * The Tool contract exposes the calling agent as `exec.agent`, and `Agent` is
+ * `{ id: SessionId }` — `exec.sessionId` does not exist on this host. The extra
+ * spellings are kept because a carrier may expose the id differently.
+ */
+function resolveSessionId(exec) {
+  if (!exec) return null
+  if (typeof exec.sessionId === 'string') return exec.sessionId
+  const agent = exec.agent
+  if (agent && typeof agent.id === 'string') return agent.id
+  if (agent && agent.session && typeof agent.session.id === 'string') return agent.session.id
+  if (exec.session && typeof exec.session.id === 'string') return exec.session.id
+  return null
+}
+
 export function apply(ctx, rawConfig = {}) {
   // Latest context seen by any of this plugin's forks. Injected services appear
   // on the fork's context, not on the apply-time one, so lazy resolution reads
@@ -190,7 +207,7 @@ export function apply(ctx, rawConfig = {}) {
     ...searchService,
     async search(args, exec) {
       const startedAt = Date.now()
-      const sessionId = typeof exec?.sessionId === 'string' ? exec.sessionId : null
+      const sessionId = resolveSessionId(exec)
       try {
         const result = await searchService.search(args, exec)
         const ms = Date.now() - startedAt
