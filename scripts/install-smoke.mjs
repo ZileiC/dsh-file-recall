@@ -236,6 +236,8 @@ try {
   assert.match(clientSource, /__ModuleLoader__\.load\(\{/)
   assert.match(clientSource, /'sidebar\.panellist'/)
   assert.match(clientSource, /name: 'main'/)
+  assert.match(clientSource, /'tool\.call\.toolview'/)
+  assert.match(clientSource, /key: 'file_recall_search'/)
   new Function(clientSource)
   report.client = { path: clientPath, bytes: clientSource.length }
 
