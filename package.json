@@ -1,0 +1,71 @@
+{
+  "name": "dsh-file-recall",
+  "version": "0.1.0",
+  "description": "Local page-level document recall for DeepSeek Harness: locate the file and page from a vague description, with verifiable evidence.",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "document-search",
+    "recall",
+    "local-first",
+    "ocr",
+    "sqlite",
+    "fts5"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ZileiC/dsh-file-recall.git"
+  },
+  "homepage": "https://github.com/ZileiC/dsh-file-recall",
+  "bugs": {
+    "url": "https://github.com/ZileiC/dsh-file-recall/issues"
+  },
+  "author": "ZileiC",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "lib/**/*.js",
+    "lib/ocr/lang/*.traineddata",
+    "skills/**",
+    "scripts/ocr-selfcheck.mjs",
+    "locale/*.json",
+    "cordis.patch.yml",
+    "icon.svg",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "engines": {
+    "node": ">=22.19.0",
+    "dsh": ">=0.2.2-rc.1"
+  },
+  "scripts": {
+    "test": "node --test",
+    "ocr:selfcheck": "node scripts/ocr-selfcheck.mjs",
+    "e2e": "node scripts/e2e.mjs",
+    "eval": "node scripts/eval.mjs",
+    "perf": "node scripts/perf.mjs",
+    "install:smoke": "node scripts/install-smoke.mjs",
+    "pack": "node scripts/pack.mjs"
+  },
+  "dependencies": {
+    "exceljs": "4.4.0",
+    "fast-xml-parser": "5.12.0",
+    "jszip": "3.10.2",
+    "mammoth": "1.13.0",
+    "pdfjs-dist": "6.5.438",
+    "tesseract.js": "7.0.0"
+  }
+}
