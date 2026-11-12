@@ -18,7 +18,7 @@ import { createToolDefinitions } from './lib/tools.js'
 import { createLlmExpander } from './lib/expander.js'
 import { createOcrService } from './lib/ocr/provider.js'
 import { createSkillRegistration } from './lib/skill.js'
-import { registerUiRoutes } from './lib/ui-routes.js'
+import { registerUiRoutes, ROUTE_PATH as UI_ROUTE_PATH } from './lib/ui-routes.js'
 
 export const name = 'file-recall'
 
@@ -139,7 +139,12 @@ export function apply(ctx, rawConfig = {}) {
     'file-recall: lifecycle',
   )
 
-  const definitions = createToolDefinitions({ store, search, indexer, learning, ocrStatus })
+  // Observable state of the optional HTTP carrier. `file_recall_index status`
+  // reports it, so a missing panel is diagnosable without reading host logs.
+  const uiState = { status: 'waiting', path: UI_ROUTE_PATH, error: null }
+  const uiStatus = () => ({ ...uiState })
+
+  const definitions = createToolDefinitions({ store, search, indexer, learning, ocrStatus, uiStatus })
   for (const definition of definitions) {
     ctx.effect(
       () => ctx.tools.register(definition),
@@ -150,16 +155,44 @@ export function apply(ctx, rawConfig = {}) {
   const skill = createSkillRegistration()
   ctx.effect(() => ctx.skills.register(skill), 'file-recall: skill')
 
-  // Client panel data (read-only). Absent in headless carriers.
-  try {
-    const webServer = ctx.get?.('webServer')
-    if (webServer?.register) {
-      ctx.effect(
-        () => registerUiRoutes({ webServer, indexer, store, ocrStatus }),
+  // The HTTP carrier is optional: a headless carrier simply has no panel.
+  //
+  // `ctx.inject` runs this fork as soon as the service is available — including
+  // when `webServer` starts AFTER this plugin. A one-shot `ctx.get('webServer')`
+  // inside apply() misses exactly that ordering and leaves the panel with a
+  // permanent 404 while every tool and the skill keep working.
+  function mountUiRoutes(web) {
+    const webServer = web.webServer
+    if (!webServer?.register) {
+      uiState.status = 'unsupported'
+      return
+    }
+    try {
+      const dispose = registerUiRoutes({ webServer, indexer, store, ocrStatus })
+      uiState.status = 'registered'
+      uiState.error = null
+      web.effect(
+        () => () => {
+          if (uiState.status === 'registered') uiState.status = 'disposed'
+          try {
+            dispose?.()
+          } catch {
+            // Already unregistered.
+          }
+        },
         'file-recall: ui routes',
       )
+    } catch (error) {
+      uiState.status = 'error'
+      uiState.error = error instanceof Error ? error.message : String(error)
     }
-  } catch {
-    // A carrier without an HTTP server simply has no panel.
+  }
+
+  if (typeof ctx.inject === 'function') {
+    ctx.inject(['webServer'], mountUiRoutes)
+  } else {
+    // Carriers without the scoped-inject helper: try once, never abort loading.
+    const webServer = ctx.get?.('webServer')
+    if (webServer?.register) mountUiRoutes({ webServer, effect: ctx.effect.bind(ctx) })
   }
 }
