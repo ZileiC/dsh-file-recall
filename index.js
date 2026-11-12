@@ -6,8 +6,8 @@
  *   skill: file-recall
  */
 
-import { mkdirSync, renameSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { mkdirSync, renameSync, writeFileSync } from 'node:fs'
+import { join, dirname } from 'node:path'
 
 import { normalizeConfig, resolveDbPath } from './lib/config.js'
 import { openStore } from './lib/store.js'
@@ -18,10 +18,11 @@ import { createToolDefinitions } from './lib/tools.js'
 import { createLlmExpander } from './lib/expander.js'
 import { createOcrService } from './lib/ocr/provider.js'
 import { createOnDemandOcr } from './lib/ocr/ondemand.js'
-import { createSkillRegistration } from './lib/skill.js'
+import { createSkillRegistration, createTidySkillRegistration } from './lib/skill.js'
 import { createActivityLog } from './lib/activity.js'
 import { createOutcomeResolver } from './lib/outcome.js'
 import { createGraphBuilder } from './lib/graph.js'
+import { createTidyPlanner } from './lib/tidy.js'
 import { registerUiRoutes, ROUTE_PATH as UI_ROUTE_PATH } from './lib/ui-routes.js'
 
 export const name = 'file-recall'
@@ -279,6 +280,20 @@ export function apply(ctx, rawConfig = {}) {
   // never renders the whole archive at once.
   const graph = createGraphBuilder({ store })
 
+  // Tidy proposals are read-only. The plan is written next to the index so the
+  // user can open the full list; nothing on disk is moved or renamed.
+  const tidy = {
+    planner: createTidyPlanner({ store }),
+    savePlan(plan) {
+      if (dbPath === ':memory:') return null
+      const targetDir = dirname(dbPath)
+      mkdirSync(targetDir, { recursive: true })
+      const target = join(targetDir, 'tidy-plan.json')
+      writeFileSync(target, JSON.stringify(plan, null, 2), 'utf8')
+      return target
+    },
+  }
+
   const definitions = createToolDefinitions({
     store,
     search,
@@ -289,6 +304,7 @@ export function apply(ctx, rawConfig = {}) {
     expansionStatus,
     memoryStatus,
     onDemandOcr,
+    tidy,
   })
   for (const definition of definitions) {
     ctx.effect(
@@ -299,6 +315,9 @@ export function apply(ctx, rawConfig = {}) {
 
   const skill = createSkillRegistration()
   ctx.effect(() => ctx.skills.register(skill), 'file-recall: skill')
+
+  const tidySkill = createTidySkillRegistration()
+  ctx.effect(() => ctx.skills.register(tidySkill), 'file-recall: tidy skill')
 
   // The HTTP carrier is optional: a headless carrier simply has no panel.
   //

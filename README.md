@@ -129,12 +129,18 @@ plugin_manager action=install_bundle target=<clone 下来的绝对路径>
 >
 > 面板显示「无法连接插件服务 / HTTP 404」= host 侧 `/api/file-recall/*` 路由没生效，通常是宿主还在跑旧模块：重启应用。若重启后仍 404，把 `node scripts/doctor.mjs "<资料目录>"` 的输出发出来。
 |---|---|
-| `file_recall_index` | `status` / `sync` / `build` / `configure` / `retry` / `reset`；`build` 分批执行，重复到 `done: true` |
+| `file_recall_index` | `status` / `sync` / `build` / `configure` / `retry` / `reset` / `ocr`；`build` 分批执行，重复到 `done: true` |
 | `file_recall_search` | 模糊描述 → 候选（path / page / locator / snippet / matchType） |
-| `file_recall_evidence` | 按 chunkId 读回索引原文与相邻页；引用前必须调用 |
+| `file_recall_evidence` | 按 chunkId 读回索引原文；扫描页可给 `{ path, page }` 当场 OCR |
 | `file_recall_feedback` | 记录 hit/wrong/partial；纠正词进入本地同义词表 |
+| `file_recall_tidy` | `plan`：**只读**整理方案（散落文件 / 相机自动命名 / 无日期统计 / 重复名 / 超载文件夹） |
 
-随包注册 `file-recall` skill：告诉 agent 何时搜、如何读页、证据纪律与空态处理。
+随包注册两个 skill：
+
+- `file-recall`：何时搜、如何读页、证据纪律与空态处理。
+- `file-tidy`：整理方案的口径与风险说明。**它被明确限制为只出方案**——插件当前没有任何移动/重命名文件的能力，方案写到 `$DSH_HOME/storages/file-recall/tidy-plan.json`。
+
+整理方案的原则：改名**只加日期前缀**（`2023-05-01_原名.pdf`，原名一个字不改），且只针对相机/扫描仪自动命名；名字是你自己起的即使没日期也**不动**（`undated` 只统计）；`venv` / `node_modules` / `build` / `site-packages` 等构建与依赖目录整体忽略。
 
 ## Mac 分发包
 

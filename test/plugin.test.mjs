@@ -94,15 +94,25 @@ test('plugin apply registers the tools and the runtime skill', async () => {
         'file_recall_feedback',
         'file_recall_index',
         'file_recall_search',
+        'file_recall_tidy',
       ],
     )
-    assert.equal(skills.length, 1)
+    assert.equal(skills.length, 2)
     assert.equal(skills[0].name, 'file-recall')
     assert.equal(skills[0].source, 'runtime')
     assert.deepEqual(skills[0].invocation, { modelInvocable: true, userInvocable: true })
     assert.match(skills[0].content, /证据纪律/)
     assert.match(skills[0].content, /空态处理/)
     assert.match(skills[0].content, /file_recall_evidence/)
+
+    // The tidy skill must pair with a read-only tool: its body has to state the
+    // no-execution boundary, otherwise the model may promise a move it cannot do.
+    const tidySkill = skills.find((skill) => skill.name === 'file-tidy')
+    assert.ok(tidySkill, 'file-tidy skill was not registered')
+    assert.equal(tidySkill.source, 'runtime')
+    assert.match(tidySkill.content, /只能出方案/)
+    assert.match(tidySkill.content, /不许说「已经整理好」/)
+    assert.match(tidySkill.content, /观测|mtime/)
 
     const indexTool = tools.find((tool) => tool.name === 'file_recall_index')
     const status = await indexTool.execute({ action: 'status' }, {})
@@ -186,6 +196,7 @@ test('corrupt databases are archived and the plugin still starts', async () => {
         'file_recall_feedback',
         'file_recall_index',
         'file_recall_search',
+        'file_recall_tidy',
       ],
     )
     const status = await tools
