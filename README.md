@@ -105,9 +105,18 @@ plugin_manager action=install_bundle target=<clone 下来的绝对路径>
 
 安装后确认 `file_recall_index` 出现在工具列表；首次使用先配置 `roots` 并建库（见上）。
 
-## 工具
+## 界面
 
-| 工具 | 作用 |
+装好后左侧栏多一个「文件记忆召回」图标（`file-recall`），点开是面板：
+
+- 顶部状态点与数字：文件 / 片段 / OCR 页 / 待处理 / 失败
+- 索引覆盖：最近同步时间、当前 OCR provider（含回退来源）、资料目录
+- 最近纠正：找对 / 部分对 / 找错，以及学到的对照
+- 空态会直接告诉你在对话里怎么说才能建库
+
+面板每 4 秒轮询一次，只在标签页可见时刷新；数据来自同源只读接口 `/api/file-recall/status` 与 `/recent`，**面板不提供写操作**，所有变更仍走对话里的工具调用。
+
+> 改了 host 侧代码后需要**完全重启 DeepSeek Harness**；仅刷新页面或重装 bundle 不会替换已加载的模块。
 |---|---|
 | `file_recall_index` | `status` / `sync` / `build` / `configure` / `retry` / `reset`；`build` 分批执行，重复到 `done: true` |
 | `file_recall_search` | 模糊描述 → 候选（path / page / locator / snippet / matchType） |
