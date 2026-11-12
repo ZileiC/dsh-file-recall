@@ -17,6 +17,7 @@ import { createSearchService } from './lib/search.js'
 import { createToolDefinitions } from './lib/tools.js'
 import { createLlmExpander } from './lib/expander.js'
 import { createOcrService } from './lib/ocr/provider.js'
+import { createOnDemandOcr } from './lib/ocr/ondemand.js'
 import { createSkillRegistration } from './lib/skill.js'
 import { createActivityLog } from './lib/activity.js'
 import { createOutcomeResolver } from './lib/outcome.js'
@@ -88,9 +89,14 @@ export function apply(ctx, rawConfig = {}) {
     batchMs: config.index.batchMs,
     maxFilesPerBatch: config.index.maxFilesPerBatch,
     ocrMaxPages: config.ocr.maxPagesPerDoc,
+    ocrMode: config.ocr.mode,
     ocr: ocrProxy,
     dbPath,
   })
+
+  // Lazy OCR: recognise a scanned page when someone actually reads it. Shares the
+  // same proxy, so the worker is still created on first use.
+  const onDemandOcr = ocrProxy ? createOnDemandOcr({ store, ocr: ocrProxy }) : null
 
   // Query expansion resolves the model LAZILY, on the first search.
   //
@@ -211,9 +217,11 @@ export function apply(ctx, rawConfig = {}) {
       const service = await ocrPromise
       return {
         enabled: true,
+        mode: config.ocr.mode,
         provider: service?.provider ?? null,
         fallbackFrom: service?.fallbackFrom ?? null,
         experimental: Boolean(service?.experimental),
+        pages: store.ocrPageStats(),
       }
     } catch (error) {
       return {
@@ -280,6 +288,7 @@ export function apply(ctx, rawConfig = {}) {
     uiStatus,
     expansionStatus,
     memoryStatus,
+    onDemandOcr,
   })
   for (const definition of definitions) {
     ctx.effect(

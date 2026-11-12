@@ -270,7 +270,7 @@ test('images are OCRed during build and the OCR source is recorded', async () =>
   }
   try {
     copyFileSync(fixture('ocr-zh.png'), join(dir, 'scan.png'))
-    const indexer = createIndexer({ store, roots: [dir], ocr })
+    const indexer = createIndexer({ store, roots: [dir], ocr, ocrMode: 'eager' })
     const syncResult = await indexer.sync()
     assert.equal(syncResult.added, 1)
 
@@ -292,7 +292,7 @@ test('images are OCRed during build and the OCR source is recorded', async () =>
   }
 })
 
-test('images without an OCR provider stay visibly scanned', async () => {
+test('images without an OCR provider stay visibly scanned and queue for lazy OCR', async () => {
   const dir = tempDir()
   const store = openStore(':memory:')
   try {
@@ -302,7 +302,11 @@ test('images without an OCR provider stay visibly scanned', async () => {
     await indexer.build({ maxFiles: 10 })
     const file = store.getFile(join(dir, 'scan.png'))
     assert.equal(file.status, 'scanned')
-    assert.match(file.error, /OCR disabled/)
+    assert.match(file.error, /lazy OCR/)
+    // The page is queued, not lost: the evidence tool can recognise it later.
+    const pending = store.pendingOcrPages({ limit: 10 })
+    assert.equal(pending.length, 1)
+    assert.equal(pending[0].page, 1)
   } finally {
     store.close()
     cleanup(dir)
@@ -319,8 +323,9 @@ test('scanned PDFs are reported with an explicit reason instead of vanishing', a
     await indexer.build({ maxFiles: 10 })
     const file = store.getFile(join(dir, 'scan.pdf'))
     assert.equal(file.status, 'scanned')
-    assert.match(file.error, /scanned PDF/)
+    assert.match(file.error, /lazy OCR/)
     assert.equal(store.stats().chunks, 0)
+    assert.ok(store.pendingOcrPages({ limit: 10 }).length >= 1, 'page was not queued')
   } finally {
     store.close()
     cleanup(dir)
@@ -371,7 +376,7 @@ test('scanned PDF pages are OCRed page by page when a provider exists', async ()
   }
   try {
     copyFileSync(fixture('pdf-scan.pdf'), join(dir, 'scan.pdf'))
-    const indexer = createIndexer({ store, roots: [dir], ocr, ocrMaxPages: 2 })
+    const indexer = createIndexer({ store, roots: [dir], ocr, ocrMode: 'eager', ocrMaxPages: 2 })
     const syncResult = await indexer.sync()
     assert.equal(syncResult.added, 1)
     const buildResult = await indexer.build({ maxFiles: 10 })
@@ -407,7 +412,7 @@ test('mixed text+scan PDFs OCR only the scanned pages and keep text pages', asyn
   }
   try {
     copyFileSync(fixture('pdf-mixed-scan.pdf'), join(dir, 'mixed.pdf'))
-    const indexer = createIndexer({ store, roots: [dir], ocr, ocrMaxPages: 2 })
+    const indexer = createIndexer({ store, roots: [dir], ocr, ocrMode: 'eager', ocrMaxPages: 2 })
     await indexer.sync()
     const buildResult = await indexer.build({ maxFiles: 10 })
     assert.equal(buildResult.done, true)
@@ -442,8 +447,10 @@ test('mixed PDFs without OCR stay searchable but expose the missing pages', asyn
     await indexer.build({ maxFiles: 10 })
     const file = store.getFile(join(dir, 'mixed.pdf'))
     assert.equal(file.status, 'ok')
-    assert.match(file.error, /scanned pages not OCRed: 2/)
+    assert.match(file.error, /lazy OCR: 1 scanned page\(s\) pending/)
     assert.equal(store.stats().chunks, 1)
+    // The text page is searchable now; the scanned page is queued, not dropped.
+    assert.equal(store.pendingOcrPages({ limit: 10 }).length, 1)
   } finally {
     store.close()
     cleanup(dir)
@@ -478,7 +485,7 @@ test('mixed PDF OCR failures are recorded instead of silently dropped', async ()
   }
   try {
     copyFileSync(fixture('pdf-mixed-scan.pdf'), join(dir, 'mixed.pdf'))
-    const indexer = createIndexer({ store, roots: [dir], ocr, ocrMaxPages: 2 })
+    const indexer = createIndexer({ store, roots: [dir], ocr, ocrMode: 'eager', ocrMaxPages: 2 })
     await indexer.sync()
     await indexer.build({ maxFiles: 10 })
     const file = store.getFile(join(dir, 'mixed.pdf'))
