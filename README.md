@@ -117,6 +117,8 @@ plugin_manager action=install_bundle target=<clone 下来的绝对路径>
 面板每 4 秒轮询一次，只在标签页可见时刷新；数据来自同源只读接口 `/api/file-recall/status` 与 `/recent`，**面板不提供写操作**，所有变更仍走对话里的工具调用。
 
 > 改了 host 侧代码后需要**完全重启 DeepSeek Harness**；仅刷新页面或重装 bundle 不会替换已加载的模块。
+>
+> 面板显示「无法连接插件服务 / HTTP 404」= host 侧 `/api/file-recall/*` 路由没生效，通常是宿主还在跑旧模块：重启应用。若重启后仍 404，把 `node scripts/doctor.mjs "<资料目录>"` 的输出发出来。
 |---|---|
 | `file_recall_index` | `status` / `sync` / `build` / `configure` / `retry` / `reset`；`build` 分批执行，重复到 `done: true` |
 | `file_recall_search` | 模糊描述 → 候选（path / page / locator / snippet / matchType） |
