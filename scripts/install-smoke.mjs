@@ -195,6 +195,11 @@ try {
     .execute({ action: 'status' }, {})
   assert.equal(toolStatus.ui?.status, 'registered', 'tool status did not report the live UI route')
   assert.equal(toolStatus.ui?.path, '/api/file-recall')
+  // Memory must be observable: the search above is already persisted history.
+  assert.ok(toolStatus.memory, 'status did not report memory')
+  assert.ok(toolStatus.memory.total >= 1, 'the search was not persisted to recall history')
+  assert.equal(typeof toolStatus.memory.stated, 'number')
+  assert.equal(typeof toolStatus.memory.inferred, 'number')
   report.routes = {
     kind: route.kind,
     path: route.path,

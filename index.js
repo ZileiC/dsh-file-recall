@@ -19,6 +19,7 @@ import { createLlmExpander } from './lib/expander.js'
 import { createOcrService } from './lib/ocr/provider.js'
 import { createSkillRegistration } from './lib/skill.js'
 import { createActivityLog } from './lib/activity.js'
+import { createOutcomeResolver } from './lib/outcome.js'
 import { registerUiRoutes, ROUTE_PATH as UI_ROUTE_PATH } from './lib/ui-routes.js'
 
 export const name = 'file-recall'
@@ -140,7 +141,31 @@ export function apply(ctx, rawConfig = {}) {
   }
   const expanderForSearch = config.expansion.enabled ? expander : null
 
-  const learning = createLearningService({ store })
+  // Long-term memory: every search is persisted, and the previous one is
+  // settled by how the user moves on (see lib/outcome.js).
+  const outcome = createOutcomeResolver({ store })
+
+  const learningService = createLearningService({ store })
+  // A verdict the user actually stated also resolves the matching stored query,
+  // and it is the only kind allowed to teach the synonym table.
+  const learning = {
+    ...learningService,
+    recordFeedback(input = {}) {
+      const result = learningService.recordFeedback(input)
+      try {
+        outcome.confirm({
+          query: input.query,
+          verdict: input.verdict,
+          chunkId: input.chunkId,
+          correction: input.correction,
+        })
+      } catch {
+        /* memory is best effort */
+      }
+      return result
+    },
+  }
+
   const searchService = createSearchService({
     store,
     expander: expanderForSearch,
@@ -159,7 +184,13 @@ export function apply(ctx, rawConfig = {}) {
       const startedAt = Date.now()
       try {
         const result = await searchService.search(args, exec)
-        activity.record({ query: args?.query, result, ms: Date.now() - startedAt })
+        const ms = Date.now() - startedAt
+        try {
+          outcome.observe({ raw: args?.query, rewritten: result?.normalized, result, elapsedMs: ms })
+        } catch {
+          /* memory is best effort */
+        }
+        activity.record({ query: args?.query, result, ms })
         return result
       } catch (error) {
         activity.record({
@@ -221,6 +252,21 @@ export function apply(ctx, rawConfig = {}) {
       : 'auto (agentDefaultModel)',
   })
 
+  // What the plugin has learned so far — visible from one tool call, so "memory"
+  // is never a claim without evidence.
+  const memoryStatus = () => {
+    try {
+      const stats = store.queryOutcomeStats()
+      return {
+        ...stats,
+        synonyms: store.listSynonyms().length,
+        feedback: store.listFeedback(1000).length,
+      }
+    } catch {
+      return null
+    }
+  }
+
   const definitions = createToolDefinitions({
     store,
     search,
@@ -229,6 +275,7 @@ export function apply(ctx, rawConfig = {}) {
     ocrStatus,
     uiStatus,
     expansionStatus,
+    memoryStatus,
   })
   for (const definition of definitions) {
     ctx.effect(
@@ -253,7 +300,7 @@ export function apply(ctx, rawConfig = {}) {
       return
     }
     try {
-      const dispose = registerUiRoutes({ webServer, indexer, store, ocrStatus, activity })
+      const dispose = registerUiRoutes({ webServer, indexer, store, ocrStatus, activity, memoryStatus })
       uiState.status = 'registered'
       uiState.error = null
       web.effect(
