@@ -6,6 +6,7 @@ import { join } from 'node:path'
 
 import { openStore } from '../lib/store.js'
 import { createTidyPlanner } from '../lib/tidy.js'
+import { renderFishbone } from '../lib/fishbone.js'
 
 const ROOT = 'D:\\vault'
 // 2023-05-01T00:00:00Z, so the date prefix is deterministic in any timezone
@@ -188,6 +189,73 @@ test('an empty archive produces an empty plan instead of noise', () => {
   } finally {
     done()
   }
+})
+
+test('the structure proposal keeps semesters and courses and ignores build trees', () => {
+  const { store, done } = makeStore()
+  try {
+    addFile(store, 'D:\\vault\\Ⅱ 26 Fall\\1077 Chinese communication\\Notes\\Week 3.md')
+    addFile(store, 'D:\\vault\\Ⅱ 26 Fall\\1077 Chinese communication\\Slides\\lecture.pdf')
+    addFile(store, 'D:\\vault\\Ⅱ 26 Fall\\2102 Matrix Algebra\\Notes\\L05.md')
+    addFile(store, 'D:\\vault\\Ⅰ 25 Fall\\calculus\\midterm\\exam.pdf')
+    addFile(store, 'D:\\vault\\loose-at-root.md')
+    addFile(store, 'D:\\vault\\Ⅱ 26 Fall\\1077 Chinese communication\\venv\\IMG_1.png')
+
+    const planner = createTidyPlanner({ store })
+    const structure = planner.structure({ roots: [ROOT] })
+
+    assert.equal(structure.head, '找到东西')
+    assert.equal(structure.totals.files, 5)
+    assert.equal(structure.totals.ignored, 1)
+
+    const labels = structure.branches.map((branch) => branch.label)
+    assert.ok(labels.includes('Ⅱ 26 Fall'))
+    assert.ok(labels.includes('Ⅰ 25 Fall'))
+    assert.ok(labels.includes('根目录散落文件'), 'loose root files are their own branch')
+
+    const semester = structure.branches.find((branch) => branch.label === 'Ⅱ 26 Fall')
+    assert.equal(semester.count, 3)
+    const courseLabels = semester.children.map((child) => child.label)
+    assert.ok(courseLabels.includes('1077 Chinese communication'))
+    assert.ok(courseLabels.includes('2102 Matrix Algebra'))
+
+    // The proposal must state its levels and rules, because that is what the
+    // user approves — not the picture alone.
+    assert.ok(structure.proposal.levels.length >= 3)
+    assert.ok(structure.proposal.levels.some((level) => /Notes|Slides/.test(level)))
+    assert.ok(structure.proposal.rules.some((rule) => /不动/.test(rule)))
+  } finally {
+    done()
+  }
+})
+
+test('the fishbone renders a standalone SVG with the head and every branch', () => {
+  const svg = renderFishbone({
+    head: '找到东西',
+    subtitle: '5 个文件',
+    branches: [
+      { label: 'Ⅱ 26 Fall', count: 3, children: [{ label: '1077 Chinese', count: 2 }, { label: '2102 Matrix', count: 1 }] },
+      { label: 'Ⅰ 25 Fall', count: 1, children: [{ label: 'calculus', count: 1 }] },
+    ],
+    width: 1000,
+  })
+  assert.match(svg, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/)
+  assert.match(svg, /找到东西/)
+  assert.match(svg, /Ⅱ 26 Fall/)
+  assert.match(svg, /1077 Chinese/)
+  assert.match(svg, /<\/svg>$/)
+  // No raw ampersands: XML would be invalid.
+  assert.doesNotMatch(svg, /&(?!(amp|lt|gt|quot);)/)
+})
+
+test('the fishbone escapes markup in labels', () => {
+  const svg = renderFishbone({
+    head: '<script>alert(1)</script>',
+    branches: [{ label: 'a & b', count: 1 }],
+  })
+  assert.doesNotMatch(svg, /<script>/)
+  assert.match(svg, /&lt;script&gt;/)
+  assert.match(svg, /a &amp; b/)
 })
 
 test('actions are capped and the truncation is reported', () => {
