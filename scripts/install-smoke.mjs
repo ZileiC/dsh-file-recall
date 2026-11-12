@@ -130,8 +130,14 @@ try {
     'file_recall_feedback',
     'file_recall_index',
     'file_recall_search',
+    'file_recall_tidy',
   ])
   assert.equal(report.skill?.name, 'file-recall')
+  // The tidy skill ships with the bundle and must state its read-only boundary.
+  const tidySkill = skills.find((skill) => skill.name === 'file-tidy')
+  assert.ok(tidySkill, 'file-tidy skill was not registered')
+  assert.match(tidySkill.content, /只能出方案/)
+  report.tidySkill = { name: tidySkill.name, source: tidySkill.source }
 
   copyFileSync(join(fixtures, 'deck-basic.pptx'), join(dir, 'deck-basic.pptx'))
   copyFileSync(join(fixtures, 'pdf-text.pdf'), join(dir, 'pdf-text.pdf'))
