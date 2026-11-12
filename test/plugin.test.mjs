@@ -337,6 +337,8 @@ test('client half is a loadable harness module with panel and sidebar surfaces',
   // its own Tool view keyed by the wire tool name.
   assert.match(source, /'tool\.call\.toolview'/)
   assert.match(source, /key: 'file_recall_search'/)
+  // The unmissable seat: full-width strip above the composer.
+  assert.match(source, /'conversation\.input\.dock'/)
   assert.match(source, /dfr-metrics/)
   assert.match(source, /prefers-reduced-motion/)
   assert.doesNotMatch(source, /<html|iframe/)

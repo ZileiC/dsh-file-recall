@@ -238,6 +238,7 @@ try {
   assert.match(clientSource, /name: 'main'/)
   assert.match(clientSource, /'tool\.call\.toolview'/)
   assert.match(clientSource, /key: 'file_recall_search'/)
+  assert.match(clientSource, /'conversation\.input\.dock'/)
   new Function(clientSource)
   report.client = { path: clientPath, bytes: clientSource.length }
 
