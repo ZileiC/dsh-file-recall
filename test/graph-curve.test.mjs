@@ -1,0 +1,69 @@
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
+import { dirname, join } from 'node:path'
+
+/**
+ * Guards for the graph rendering in the hand-written client bundle.
+ *
+ * The client cannot be imported here (it needs React and the ModuleLoader shell),
+ * so these assert the shape of the drawing code itself. They exist because both
+ * bugs shipped once and were only caught by the user looking at the screen:
+ *
+ * 1. control points interpolated along the chord — a cubic Bézier whose control
+ *    points are colinear with its endpoints is the straight segment, so "curved
+ *    wires" rendered as spokes;
+ * 2. memory dots placed at a fixed radius from their node, which is exactly the
+ *    lane of the next ring, so dots sat on top of nodes.
+ */
+
+const here = dirname(fileURLToPath(import.meta.url))
+const source = readFileSync(join(here, '..', 'lib', 'client.js'), 'utf8')
+
+test('graph wires are arcs, not chords', () => {
+  // The control point must be offset along the chord normal...
+  assert.match(source, /normalX/, 'expected a normal-vector computation for the wire bend')
+  assert.match(source, /normalY/, 'expected a normal-vector computation for the wire bend')
+  assert.match(source, /Q\$\{controlX\} \$\{controlY\}/, 'wires must be quadratic arcs')
+  // ...and must NOT be a linear interpolation of the chord, which degenerates.
+  assert.doesNotMatch(
+    source,
+    /\(entry\.x - fromX\) \* \(1 - knot\)/,
+    'colinear control points make a Bézier identical to a straight line',
+  )
+  assert.doesNotMatch(source, /fromX \+ \(entry\.x - fromX\) \* knot/)
+})
+
+test('graph wires carry a real bend, computed off the chord midpoint', () => {
+  const start = source.indexOf('const spanX = entry.x - fromX')
+  const end = source.indexOf('fill:', start)
+  const block = source.slice(start, end)
+  assert.ok(block.length > 0, 'curve math block not found')
+  // Offset is derived from the normalised normal, so it is perpendicular.
+  assert.match(block, /const normalX = -spanY \/ distance/)
+  assert.match(block, /const normalY = spanX \/ distance/)
+  // Bend scales with length but is capped so short wires do not loop.
+  assert.match(block, /Math\.min\(38, distance \* 0\.34\)/)
+})
+
+test('memory dots are placed by collision test, never by a fixed radius', () => {
+  // A placement loop that rejects positions overlapping nodes...
+  assert.match(source, /clearOfNodes/, 'expected a node-clearance test')
+  assert.match(source, /clearOfDots/, 'expected a dot-clearance test')
+  // ...and the node test uses the node radius plus the dot radius plus a gap.
+  assert.match(
+    source,
+    /Math\.hypot\(dx, dy\) < entry\.radius \+ MEMORY_R \+ 3/,
+    'clearance must account for both radii plus a visible gap',
+  )
+  // Dots must also stay inside the drawing.
+  assert.match(source, /x > box\.width - 8/)
+})
+
+test('memory dots are drawn after the nodes so they are never painted over', () => {
+  const nodeIndex = source.indexOf('className: isFolder ? \'dfr-gfolder\' : \'dfr-gfile\'')
+  const dotIndex = source.indexOf('className: \'dfr-gmemory dfr-gmemory-\' + dot.tone')
+  assert.ok(nodeIndex > 0 && dotIndex > 0, 'expected both drawing passes')
+  assert.ok(dotIndex > nodeIndex, 'dots must be painted after nodes')
+})
