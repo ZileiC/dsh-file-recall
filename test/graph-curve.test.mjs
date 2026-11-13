@@ -107,6 +107,33 @@ test('the canvas is tall enough to separate rings', () => {
   assert.ok(cssClamp >= height, `CSS clamps the canvas to ${cssClamp}px below its ${height}px`)
 })
 
+test('the layout spreads nodes apart instead of piling them on one ring', () => {
+  // Rings alone place every child of a parent at the same radius, which is what
+  // turned a folder with many children into a pile. Two mechanisms fix it:
+  // subtree-weighted angles, and a pairwise relaxation pass.
+  assert.match(source, /Deterministic pairwise relaxation/, 'expected a relaxation pass')
+  assert.match(source, /const MIN_GAP = \d+/, 'expected an explicit minimum gap')
+  assert.match(source, /pinned/, 'roots must be pinned so the trees do not drift')
+  // Angular allocation must be proportional to the subtree, not equal per child:
+  // equal slices crammed a 40-node archive into the same wedge as a 3-node one.
+  assert.match(source, /Angular allocation is proportional to SUBTREE SIZE/)
+  assert.match(source, /subtreeSize/, 'expected a subtree-size measure')
+  assert.match(source, /const placeSector = /, 'expected weighted sector allocation')
+  // The canvas must grow with the node count rather than staying fixed.
+  assert.match(source, /const canvasH = Math\.min\(\d+, Math\.max\(GRAPH_H, \d+ \+ nodes\.length \* \d+\)\)/)
+  // The dot bounds and the viewBox must use the grown canvas, not the constant.
+  assert.match(source, /y > canvasH - 10/)
+  assert.match(source, /viewBox: '0 0 ' \+ box\.width \+ ' ' \+ canvasH/)
+  const cssClamp = Number((source.match(/\.dfr-graph\{[^}]*max-height:(\d+)px/) || [])[1])
+  assert.ok(cssClamp >= 1400, `CSS clamp ${cssClamp}px would squash the grown canvas`)
+})
+
+test('a node is always pushed outward from its parent', () => {
+  // Without this the relaxation pulls a dense parent's children back toward the
+  // centre and the picture collapses into one blob.
+  assert.match(source, /const wanted = parentR \+ entry\.radius \+ parent\.radius \+ 34/)
+})
+
 test('memory dots are drawn after the nodes so they are never painted over', () => {
   const nodeIndex = source.indexOf('className: isFolder ? \'dfr-gfolder\' : \'dfr-gfile\'')
   const dotIndex = source.indexOf('className: \'dfr-gmemory dfr-gmemory-\' + dot.tone')
