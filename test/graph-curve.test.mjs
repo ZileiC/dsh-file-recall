@@ -51,14 +51,31 @@ test('memory dots are placed by collision test, never by a fixed radius', () => 
   // A placement loop that rejects positions overlapping nodes...
   assert.match(source, /clearOfNodes/, 'expected a node-clearance test')
   assert.match(source, /clearOfDots/, 'expected a dot-clearance test')
-  // ...and the node test uses the node radius plus the dot radius plus a gap.
-  assert.match(
-    source,
-    /Math\.hypot\(dx, dy\) < entry\.radius \+ MEMORY_R \+ 3/,
-    'clearance must account for both radii plus a visible gap',
+  // ...and the node test uses the node radius plus the dot radius plus a gap
+  // wide enough to read as "not touching" (the user rejected 3px twice).
+  const clearance = source.match(/Math\.hypot\(dx, dy\) < entry\.radius \+ MEMORY_R \+ (\d+)/)
+  assert.ok(clearance, 'clearance must account for both radii plus a visible gap')
+  assert.ok(
+    Number(clearance[1]) >= 6,
+    `node gap too small to read as separate: ${clearance[1]}px`,
   )
+  // Sibling dots must also keep their distance from each other.
+  const dotGap = source.match(/Math\.hypot\(x - dot\.x, y - dot\.y\) < MEMORY_R \* 2 \+ (\d+)/)
+  assert.ok(dotGap && Number(dotGap[1]) >= 5, 'dots may not touch each other')
   // Dots must also stay inside the drawing.
-  assert.match(source, /x > box\.width - 8/)
+  assert.match(source, /x > box\.width - 10/)
+})
+
+test('the canvas is tall enough to separate rings', () => {
+  const height = Number((source.match(/const GRAPH_H = (\d+)/) || [])[1])
+  assert.ok(height >= 560, `graph canvas too short (${height}px): rings and dots collide`)
+  const fractions = JSON.parse((source.match(/const GRAPH_RING_FRACTIONS = (\[[^\]]+\])/) || [])[1])
+  assert.ok(fractions[1] - fractions[0] >= 0.25, 'ring 1 and ring 2 are too close together')
+  assert.strictEqual(fractions[2], 1)
+  // The CSS clamp must not be tighter than the drawing height, or the browser
+  // squeezes the whole graph back into the crowded layout.
+  const cssClamp = Number((source.match(/\.dfr-graph\{[^}]*max-height:(\d+)px/) || [])[1])
+  assert.ok(cssClamp >= height, `CSS clamps the canvas to ${cssClamp}px below its ${height}px`)
 })
 
 test('memory dots are drawn after the nodes so they are never painted over', () => {
