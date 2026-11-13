@@ -94,11 +94,64 @@ test('depth 1 is still available when only one level is wanted', () => {
     const graph = createGraphBuilder({ store })
     const view = graph.build({ roots: [ROOT], depth: 1 })
     assert.equal(view.depth, 1)
-    assert.ok(view.nodes.every((node) => node.depth === 1))
+    // The root is a real node now (depth 0); everything else is one level down.
+    const rootNode = view.nodes.find((node) => node.type === 'root')
+    assert.ok(rootNode, 'the configured root must be drawn as a node')
+    assert.equal(rootNode.name, 'vault')
+    assert.ok(view.nodes.filter((node) => node.type !== 'root').every((node) => node.depth === 1))
     assert.deepEqual(
       view.nodes.filter((node) => node.type === 'folder').map((node) => node.name).sort(),
       ['课程A', '课程B'].sort(),
     )
+  } finally {
+    done()
+  }
+})
+
+test('two roots are drawn as two real folders, never merged into one hub', () => {
+  const { store, done } = makeStore()
+  const other = 'E:\\Archive'
+  try {
+    seed(store)
+    // Same relative folder name under both roots on purpose: a rel-keyed link
+    // would put one tree's branch under the other root.
+    for (const [path, status] of [
+      ['E:\\Archive\\课程A\\课件\\other.pptx', 'ok'],
+      ['E:\\Archive\\独立资料\\report.pdf', 'ok'],
+    ]) {
+      store.upsertFile({ path, size: 10, mtime: 1 })
+      store.replaceChunks(path, [{ kind: 'page', page: 1, text: 'z'.repeat(20) }])
+      store.setFileStatus(path, status)
+    }
+
+    const graph = createGraphBuilder({ store })
+    const view = graph.build({ roots: [ROOT, other], depth: 2 })
+
+    const roots = view.nodes.filter((node) => node.type === 'root')
+    assert.equal(roots.length, 2, 'one node per configured root')
+    assert.deepEqual(roots.map((node) => node.name).sort(), ['Archive', 'vault'].sort())
+    // Each root owns a distinct id, and there is no synthetic centre node.
+    assert.equal(new Set(roots.map((node) => node.id)).size, 2)
+    assert.ok(!view.nodes.some((node) => node.id === 'root:' || node.name === '全部资料'))
+
+    // Every non-root node hangs off a node that exists in this payload.
+    const ids = new Set(view.nodes.map((node) => node.id))
+    for (const node of view.nodes) {
+      if (node.type === 'root') continue
+      assert.ok(ids.has(node.parentId), `${node.name} points at a missing parent ${node.parentId}`)
+      assert.ok(String(node.parentId).startsWith('root:') || String(node.parentId).startsWith('folder:'))
+    }
+
+    // 课程A exists under both roots and must appear twice, each under its own root.
+    const courses = view.nodes.filter((node) => node.name === '课程A')
+    assert.equal(courses.length, 2, 'a shared relative name must not collapse into one node')
+    const parents = new Set(courses.map((node) => node.parentId))
+    assert.equal(parents.size, 2, 'each 课程A belongs to a different root')
+
+    // The second root's own children are attached to it, not to the first root.
+    const archive = roots.find((node) => node.name === 'Archive')
+    const indep = view.nodes.find((node) => node.name === '独立资料')
+    assert.equal(indep.parentId, archive.id)
   } finally {
     done()
   }
@@ -132,8 +185,9 @@ test('a focus expands two levels and reports its breadcrumb', () => {
     assert.equal(view.focus, '课程A')
     assert.deepEqual(view.breadcrumb, ['课程A'])
     const names = view.nodes.map((node) => node.name).sort()
-    assert.deepEqual(names, ['deck.pptx', 'note.md', '扫描件 001.pdf', '笔记', '课件'].sort())
-    assert.ok(view.nodes.every((node) => node.depth >= 1 && node.depth <= 2))
+    // 'vault' is the real root folder, kept so the tree is anchored in reality.
+    assert.deepEqual(names, ['deck.pptx', 'note.md', '扫描件 001.pdf', '笔记', '课件', 'vault'].sort())
+    assert.ok(view.nodes.every((node) => node.type === 'root' || (node.depth >= 1 && node.depth <= 2)))
     const scanned = view.nodes.find((node) => node.name === '扫描件 001.pdf')
     assert.equal(scanned.type, 'file')
     assert.equal(scanned.kind, 'pdf')
