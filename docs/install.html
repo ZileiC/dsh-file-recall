@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>装一个会帮你找文件的助手</title>
+<style>
+  /* ---- 视觉论点 ----------------------------------------------------------
+     读者是五十多岁、会用 Mac、没碰过命令行的人。所以：杂志排版，不是仪表盘。
+     暖白纸面（#faf8f4）承托，墨黑正文（#1c1c1a），单一赭红强调（#a8352a）
+     只用在"你此刻该按的地方"。中文思源宋体正文（读起来不紧绷），
+     界面标签/文件路径用等宽，一眼和说话区别开。
+     排版：每屏只讲一件事，大留白，步骤编号是真实序列才用。
+     ---------------------------------------------------------------------- */
+  :root {
+    --paper: #faf8f4;
+    --ink: #1c1c1a;
+    --ink-2: #4a4843;
+    --ink-3: #6f6b63;
+    --rule: #ddd8cd;
+    --mark: #a8352a;
+    --mark-soft: #f3e2de;
+    --tint: #f2efe7;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Songti SC", "Noto Serif SC", "Source Han Serif SC", Georgia, serif;
+    font-size: 17px;
+    line-height: 1.85;
+  }
+  .progress {
+    position: fixed; inset: 0 0 auto 0; height: 3px;
+    background: var(--rule); z-index: 20;
+  }
+  .progress i {
+    display: block; height: 100%; width: 0;
+    background: var(--mark);
+    transition: width 120ms linear;
+  }
+  main { max-width: 44rem; margin: 0 auto; padding: 5rem 1.5rem 8rem; }
+
+  .kicker {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 12px; letter-spacing: .14em; color: var(--ink-3);
+    margin: 0 0 1.2rem;
+  }
+  h1 {
+    font-size: clamp(1.9rem, 5vw, 2.9rem);
+    line-height: 1.25; letter-spacing: -.01em;
+    margin: 0 0 1.4rem; font-weight: 700;
+  }
+  .lede { font-size: 1.12rem; color: var(--ink-2); margin: 0 0 2rem; max-width: 34rem; }
+
+  .step { margin: 4.5rem 0 0; padding-top: 2.2rem; border-top: 1px solid var(--rule); }
+  .step:first-of-type { border-top: 0; padding-top: 0; }
+  .step-num {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 13px; color: var(--mark); letter-spacing: .1em;
+    margin: 0 0 .5rem;
+  }
+  h2 { font-size: 1.45rem; line-height: 1.4; margin: 0 0 1rem; font-weight: 700; }
+  p { margin: 0 0 1.1rem; }
+  .do {
+    border-left: 3px solid var(--mark);
+    padding: .2rem 0 .2rem 1.1rem;
+    margin: 0 0 1.4rem;
+    font-size: 1.05rem;
+  }
+  .do strong { color: var(--mark); }
+
+  figure { margin: 1.6rem 0 1.8rem; }
+  .shot {
+    width: 100%; aspect-ratio: 16 / 10;
+    background: var(--tint);
+    border: 1px dashed #c9c2b3;
+    border-radius: 10px;
+    display: grid; place-items: center;
+    text-align: center; padding: 1.4rem;
+  }
+  .shot span {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 13px; line-height: 1.6; color: var(--ink-3);
+    max-width: 26rem;
+  }
+  figcaption {
+    font-size: 13.5px; color: var(--ink-3); margin-top: .6rem;
+  }
+
+  .copy {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    display: block; background: #ffffff;
+    border: 1px solid var(--rule); border-radius: 8px;
+    padding: .9rem 1.1rem; margin: .8rem 0 1.2rem;
+    font-size: 14.5px; line-height: 1.6; color: var(--ink);
+    white-space: pre-wrap; word-break: break-word;
+  }
+
+  .aside {
+    background: var(--mark-soft); border-radius: 10px;
+    padding: 1.1rem 1.3rem; margin: 1.6rem 0;
+    font-size: 15.5px;
+  }
+  .aside p:last-child { margin: 0; }
+
+  .end {
+    margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--rule);
+    color: var(--ink-2);
+  }
+  a { color: var(--mark); text-underline-offset: 3px; }
+  a:focus-visible, .copy:focus-visible { outline: 2px solid var(--mark); outline-offset: 3px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .progress i { transition: none; }
+  }
+  @media print {
+    .progress { display: none; }
+    .shot { break-inside: avoid; }
+    .step { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<div class="progress"><i id="bar"></i></div>
+
+<main>
+  <p class="kicker">安装指南 · 大约 10 分钟</p>
+  <h1>装一个会帮你找文件的助手</h1>
+  <p class="lede">
+    装好以后，你可以在对话框里随口说一句「帮我找去年那个体检报告」，
+    它会告诉你文件在哪、在第几页。下面七步，每一步只有一个动作。
+  </p>
+
+  <section class="step">
+    <p class="step-num">第一步</p>
+    <h2>下载</h2>
+    <p class="do">打开 <a href="https://deepseek.com" target="_blank" rel="noopener">deepseek.com</a>，
+      找到写着 <strong>下载 DeepSeek Harness</strong> 的按钮，点一下。</p>
+    <p>它选 <strong>Mac 版</strong>。下载的东西会出现在浏览器的下载列表里，名字以 .dmg 结尾。</p>
+    <div class="aside">
+      <p><strong>找不到下载按钮的话</strong>，直接跟儿子要链接——他会把当天有效的下载页发给你，
+        照着点就行，不用自己在网站里找。</p>
+    </div>
+    <figure>
+      <div class="shot"><span>[ 截图占位 ]<br>官网首页，下载按钮那一块<br>尺寸 16:10，存为 docs/img/step-01.png</span></div>
+      <figcaption>要拍的是整个下载按钮，四周留一点空白。</figcaption>
+    </figure>
+  </section>
+
+  <section class="step">
+    <p class="step-num">第二步</p>
+    <h2>把它放进"应用程序"</h2>
+    <p class="do">双击下载好的文件，会弹出一个窗口，
+      把左边的图标<strong>拖到右边的"应用程序"文件夹</strong>上，松手。</p>
+    <p>拖完就可以把那个窗口关掉了。</p>
+    <figure>
+      <div class="shot"><span>[ 截图占位 ]<br>安装窗口：左边图标 + 右边 Applications 文件夹<br>尺寸 16:10，存为 docs/img/step-02.png</span></div>
+      <figcaption>要拍出"从左边拖到右边"这个动作，可以截拖到一半的画面。</figcaption>
+    </figure>
+  </section>
+
+  <section class="step">
+    <p class="step-num">第三步</p>
+    <h2>打开，用微信登录</h2>
+    <p class="do">在"启动台"或"应用程序"里找到它，双击打开。
+      登录页面会有<strong>微信扫码</strong>的选项，用手机微信扫一下就进微信。</p>
+    <div class="aside">
+      <p>第一次打开，Mac 可能会拦一下，说这个程序来自身份不明的开发者。</p>
+      <p>这时候去 <strong>系统设置 → 隐私与安全性</strong>，往下滑，
+        看到一句「仍要打开」，点它，再确认一次就行。</p>
+    </div>
+    <figure>
+      <div class="shot"><span>[ 截图占位 ]<br>登录页，微信扫码那个入口<br>尺寸 16:10，存为 docs/img/step-03.png</span></div>
+      <figcaption>扫码的二维码要拍清楚。</figcaption>
+    </figure>
+  </section>
+
+  <section class="step">
+    <p class="step-num">第四步</p>
+    <h2>装那个帮你找文件的功能</h2>
+    <p class="do">这一步<strong>不用你做</strong>。把下面这段话，整段复制，粘进对话框，发出去。</p>
+    <pre class="copy" tabindex="0">帮我装一个插件，从这个地址装：
+https://github.com/ZileiC/dsh-file-recall
+
+装好以后告诉我：装在哪、有没有报错。</pre>
+    <p>它会自己下载、自己安装。中途如果它问你要不要允许访问文件，选<strong>允许</strong>。</p>
+    <aside class="aside" style="background:var(--tint)">
+      <p><strong>如果它说找不到 node、或者报了看不懂的英文：</strong>
+        把对话截图发给儿子，让他远程弄。这一步卡住是正常的，不是你的问题。</p>
+    </aside>
+    <figure>
+      <div class="shot"><span>[ 截图占位 ]<br>对话框，粘进去的那段话 + 点发送<br>尺寸 16:10，存为 docs/img/step-04.png</span></div>
+      <figcaption>要让人看出"这段话是粘在输入框里的"。</figcaption>
+    </figure>
+  </section>
+
+  <section class="step">
+    <p class="step-num">第五步</p>
+    <h2>让它把你的资料过一遍</h2>
+    <p class="do">在对话框里说一句：<strong>帮我把资料建成索引。</strong></p>
+    <p>它会开始扫你的文件。文件多的话要等一会儿，<strong>别关窗口</strong>，让它跑完。</p>
+    <p>如果它问「资料在哪个文件夹」，你不知道在哪儿也没关系，直接回它：</p>
+    <pre class="copy" tabindex="0">我不知道在哪个文件夹，你帮我找找</pre>
+    <figure>
+      <div class="shot"><span>[ 截图占位 ]<br>它正在建索引的状态（转圈或进度）<br>尺寸 16:10，存为 docs/img/step-05.png</span></div>
+      <figcaption>拍"正在处理"的样子，让他知道等多久都算正常。</figcaption>
+    </figure>
+  </section>
+
+  <section class="step">
+    <p class="step-num">第六步</p>
+    <h2>等它说"好了"</h2>
+    <p class="do">它跑完会告诉你建了多少个文件。看到这句话就成了。</p>
+    <p>第一次可以慢，以后再问就是几秒钟的事。</p>
+    <figure>
+      <div class="shot"><span>[ 截图占位 ]<br>"索引完成，共 xxx 个文件" 那句话<br>尺寸 16:10，存为 docs/img/step-06.png</span></div>
+      <figcaption>拍完成提示，数字要看得见。</figcaption>
+    </figure>
+  </section>
+
+  <section class="step">
+    <p class="step-num">第七步</p>
+    <h2>开始用</h2>
+    <p class="do">就像跟人说话一样，把你记得的一点点细节说出来。比如：</p>
+    <pre class="copy" tabindex="0">帮我找一下去年那份体检报告
+那个讲矩阵的课件在哪
+上次那份合同，带签字的那版</pre>
+    <p>它会给你文件在哪、在第几页，还会把那段原文摘出来给你核对。</p>
+    <p>如果它找错了，直接告诉它「不是这个」，它会记住，下次更准。</p>
+    <figure>
+      <div class="shot"><span>[ 截图占位 ]<br>一次真实问答：问 + 它给出的文件路径和页码<br>尺寸 16:10，存为 docs/img/step-07.png</span></div>
+      <figcaption>用真实问题截，别用编的例子。</figcaption>
+    </figure>
+  </section>
+
+  <div class="end">
+    <p><strong>卡住了怎么办：</strong>把屏幕上你看到的东西拍下来发给儿子就行。
+      不用自己琢磨英文报错，也不用重装。</p>
+    <p>你的文件全程留在自己电脑上，不会上传到任何地方。</p>
+  </div>
+</main>
+
+<script>
+  (function () {
+    var bar = document.getElementById('bar')
+    function paint() {
+      var doc = document.documentElement
+      var max = doc.scrollHeight - window.innerHeight
+      var ratio = max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0
+      bar.style.width = (ratio * 100).toFixed(2) + '%'
+    }
+    paint()
+    window.addEventListener('scroll', paint, { passive: true })
+    window.addEventListener('resize', paint)
+  })()
+</script>
+</body>
+</html>
