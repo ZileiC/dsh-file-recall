@@ -78,6 +78,23 @@ test('memory dots avoid node labels, not just node circles', () => {
   assert.match(source, /\\u3000-\\u9fff/)
 })
 
+test('the graph draws the real root folders, not a synthetic hub', () => {
+  // The panel used to render a single invented centre labelled "everything",
+  // which hid the real roots and merged two unrelated archives into one.
+  assert.doesNotMatch(source, /dfr-groot/, 'the synthetic hub must be gone')
+  assert.doesNotMatch(
+    source,
+    /: t\('graph\.root'\)/,
+    'the graph header must show real root names, not the generic label',
+  )
+  // Roots are drawn like any other node, from the payload.
+  assert.match(source, /node\.type === 'root'/)
+  // Links are resolved by id (a relative path can exist under two roots)...
+  assert.match(source, /entry\.node\.parentId \? byId\.get\(entry\.node\.parentId\)/)
+  // ...and fall back to that archive's own root when the parent was capped away.
+  assert.match(source, /'root:' \+ entry\.node\.root/)
+})
+
 test('the canvas is tall enough to separate rings', () => {
   const height = Number((source.match(/const GRAPH_H = (\d+)/) || [])[1])
   assert.ok(height >= 560, `graph canvas too short (${height}px): rings and dots collide`)
