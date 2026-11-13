@@ -66,6 +66,18 @@ test('memory dots are placed by collision test, never by a fixed radius', () => 
   assert.match(source, /x > box\.width - 10/)
 })
 
+test('memory dots avoid node labels, not just node circles', () => {
+  // Node names are drawn at `radius + 10`; a dot placed at `radius + 14` lands
+  // right on top of the text. Labels must therefore be obstacles too.
+  assert.match(source, /labelBoxes/, 'expected a label-box computation')
+  assert.match(source, /clearOfLabels/, 'expected a label-clearance test')
+  assert.match(source, /clearOfLabels\(x, y\)/, 'the label test must gate placement')
+  // The box must be derived from the drawn label position, not guessed.
+  assert.match(source, /const top = entry\.y \+ entry\.radius \+ 2/)
+  // CJK glyphs are wider than latin: the width estimate must know that.
+  assert.match(source, /\\u3000-\\u9fff/)
+})
+
 test('the canvas is tall enough to separate rings', () => {
   const height = Number((source.match(/const GRAPH_H = (\d+)/) || [])[1])
   assert.ok(height >= 560, `graph canvas too short (${height}px): rings and dots collide`)
