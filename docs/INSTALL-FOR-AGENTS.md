@@ -18,9 +18,9 @@
 
 ## 1. 拿到插件
 
-两种方式，二选一。
+三种方式，按目标机器的情况选。
 
-**A. 从 GitHub（推荐给非开发者机器）**
+**A. 从 GitHub（机器上有 npm 时最省事）**
 
 ```bash
 git clone https://github.com/ZileiC/dsh-file-recall.git
@@ -28,11 +28,36 @@ cd dsh-file-recall
 npm install --omit=dev --omit=optional
 ```
 
-`--omit=optional` 是必须的：它排除 `pdfjs-dist` 的可选原生 canvas，插件本身零 `.node` 依赖，跨平台可搬。
+`--omit=optional` 是必须的：它排除 `pdfjs-dist` 的可选原生 canvas。插件零 `.node` 依赖，跨平台可搬。
 
-**B. 从分发包（目标机不能编译时）**
+**B. 离线包（目标机器没有 Node / npm / git，推荐给长辈的机器）**
 
-把已打好的 zip 解压到任意目录，确认解压后存在 `index.js`、`lib/`、`node_modules/`，然后直接进入第 2 步。
+下载 Release 里的 `dsh-file-recall-<版本>.zip`，解压得到一个目录：
+
+```
+https://github.com/ZileiC/dsh-file-recall/releases/latest
+```
+
+这个 zip **已内含 `node_modules`**（生产依赖，0 个平台相关二进制），所以：
+
+- 不需要 `npm install`
+- 不需要网络
+- 不需要 `git`
+- macOS 与 Windows 通用
+
+解压后直接把目录路径交给 `plugin_manager` 的 `install_bundle`。
+
+**C. 自己打一个离线包**（改了源码、要发给别人时）
+
+```bash
+node scripts/pack.mjs          # 产出 ../dist/dsh-file-recall（含生产依赖）
+```
+
+打包脚本会报告 `nativeBinaries`，**必须是 0** 才能跨平台分发。
+
+> 给 agent 的判据：先试 A；只要出现 `node: command not found`、`npm: command not found`、`git: command not found` 或依赖安装失败，立刻转 B，别反复重试 A。
+
+**注意**：DeepSeek Harness 桌面版自带 Node 运行时（约 v24）与 pnpm，但**不带 npm**。所以"DSH 能跑"不等于"这台机器能 `npm install`"——这是两回事。
 
 ---
 
