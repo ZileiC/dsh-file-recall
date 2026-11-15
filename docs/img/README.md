@@ -1,19 +1,11 @@
-# 截图：现在只需要一张
+# 截图：第 1 张已就位
 
-**只有第 1 步需要真照片**（浏览器打开 `https://www.deepseek.com/harness/` 就能截）。
-其余六步用的是**动作示意图**（画在 HTML 里，画的是你要做的动作，不是伪造的 macOS 界面）。
+`step-01.png` **已经放好了**（2026-11-15 由 ZileiC 从官网截取并裁成 16:10）：
 
-## 必须的（一张）
+- 内容：官网标题 + 「下载 Windows 版」按钮 + 展开后的 macOS（Apple 芯片）/ Windows（64 位）菜单
+- 尺寸：1267 × 791（16:10）
 
-| 文件 | 拍什么 | 大小 |
-|---|---|---|
-| `step-01.png` | `www.deepseek.com/harness/` 下载页，Mac 版按钮那一块 | 16:10 |
-
-替换方式：把 `<div class="shot">…</div>` 整块换成
-
-```html
-<img src="img/step-01.png" alt="下载页的 Mac 版按钮" style="width:100%;border-radius:10px;border:1px solid var(--rule)">
-```
+其余六步用的是**动作示意图**（画在 HTML 里，画的是要做的动作，不是伪造的 macOS 界面）。
 
 ## 以后可选（有真机了再补）
 
