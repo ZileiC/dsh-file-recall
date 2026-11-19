@@ -1,31 +1,42 @@
 # 配图说明
 
-指南的源文件是 `docs/install-universal.html`，交付给别人时用它的单文件版
-`docs/install-universal-standalone.html`（图片 base64 内嵌，手机也能单独打开）。
+两份指南共用同一套图和样式：
 
-改完源文件后跑一次：
+| 源文件 | 单文件版 |
+|---|---|
+| `docs/install-universal.html` | `docs/install-universal-standalone.html` |
+| `docs/install-windows.html` | `docs/install-windows-standalone.html` |
+
+改完源文件后重跑对应那条：
 
 ```bash
 node scripts/bundle-guide.mjs
+node scripts/bundle-guide.mjs --source install-windows.html --out install-windows-standalone.html
 ```
 
-就会重新生成单文件版（约 500 KB，0 个外部引用）。测试会比对，忘了跑就报 stale。
+测试会比对，忘了跑就报 stale。
 
 > 为什么要有单文件版：只发 HTML 不带 `img/` 文件夹时，相对路径全部失效——手机上就是「图片不显示」。内嵌后一个文件到哪都能开。
 
-## 两张真图（从官网截取并裁切）
+## 两张真图
+
+两张都从同一张官网截图裁出来，用脚本生成，不要手工裁：
+
+```bash
+python scripts/crop-guide-images.py <官网截图.png>
+```
 
 | 文件 | 用在哪 | 内容 | 尺寸 |
 |---|---|---|---|
-| `hero-shot.png` | 页首右侧的「产品肖像」 | 官网下载页：标题 + 下载按钮 + 展开菜单 + 一点产品窗口 | 1318×823 |
-| `step-01-menu.png` | 第 1 步正文里 | 按钮 + 小箭头 + 展开菜单的特写 | 896×560 |
+| `hero-shot.png` | 页首右侧的「产品肖像」 | 官网整页：标题 + 下载按钮 + 一点产品窗口 | 2533×1583 |
+| `step-01-menu.png` | 第 1 步正文里 | 下载按钮本身，含右侧箭头 | 880×180 |
 
-两张都来自同一张原图，按 16:10 裁切；重新截取时保持 16:10 即可替换。
+换新截图时，重新量一下按钮在源图里的位置，改 `scripts/crop-guide-images.py` 里的 `BUTTON` 就行。
 
 ## 六个示意图（不占图片文件）
 
-第 2–7 步的图是内联 SVG，画的是**读者要做的动作**（拖拽、扫码、粘贴、等待、提问），
-不是伪造的 macOS 界面。改文案或改图形都直接改 `install-universal.html` 里对应的 `<svg>`。
+第 2–7 步的图是内联 SVG，画的是**读者要做的动作**，不是伪造的系统界面。
+改文案或改图形都直接改对应源页面里的 `<svg>`。
 
 ## 以后可选：换成真截图
 
