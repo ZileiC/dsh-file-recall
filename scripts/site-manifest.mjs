@@ -1,10 +1,10 @@
 /**
  * What is allowed to be published, listed one file at a time.
  *
- * This exists because copying `docs/` wholesale onto the web is what published an
- * internal acceptance note containing a real client engagement. Anything not named
- * here is NOT published, and `node scripts/check-site.mjs` fails if a published
- * page links to something outside the list.
+ * This exists because copying `docs/` wholesale onto the web publishes whatever
+ * happens to be in that folder, including documents written for internal use.
+ * Anything not named here is NOT published, and `node scripts/check-site.mjs`
+ * fails if a published page links to something outside the list.
  *
  * Adding a file here is a deliberate act: if it mentions a person, a client, a
  * machine name or an internal process, do not add it.

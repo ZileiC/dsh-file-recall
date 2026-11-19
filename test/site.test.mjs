@@ -14,9 +14,9 @@ import { parse, renderBody, buildPage as buildAgentPage } from '../scripts/agent
  * The published site is a real delivery channel, and it leaked once.
  *
  * An earlier version of this script copied `docs/` wholesale onto GitHub Pages,
- * which published an internal acceptance note quoting a real client engagement.
- * These tests exist so that cannot happen again: the site is assembled from an
- * explicit manifest, and a privacy scan runs over everything that ships.
+ * which published a document written for internal use. These tests exist so that
+ * cannot happen again: the site is assembled from an explicit manifest, and a
+ * privacy scan runs over everything that ships.
  */
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
@@ -130,13 +130,12 @@ test('the publish manifest names every file that actually ships', () => {
 })
 
 test('no published page or asset mentions a person, a client or an internal note', () => {
-  // The regression this exists for: an internal acceptance note quoting a real
-  // client engagement shipped to a public URL. Scan what actually ships, not what
-  // the manifest claims.
+  // The regression this exists for: a document written for internal use shipped
+  // to a public URL. Scan what actually ships, not what the manifest claims.
   //
   // The words are stored base64-encoded on purpose. A guard that lists the real
-  // name and the real client names in plain text would republish exactly what it
-  // is meant to protect. Decode at run time; never paste the literals here.
+  // names in plain text would republish exactly what it is meant to protect.
+  // Decode at run time; never paste the literals here.
   const encoded = [
     ['2', '54i25Lqy'],       // family: father
     ['2', '5YS/5a2Q'],       // family: son

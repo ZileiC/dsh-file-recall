@@ -44,7 +44,7 @@ DeepSeek Harness 插件：在本地资料库中按模糊描述定位**文件与�
 - 返回可核验原文：搜索结果只是线索，`file_recall_evidence` 按索引读回原文；页码来自索引，禁止模型编造。
 - 中文 **bigram** 检索（FTS5 trigram 对 2 字中文会 0 命中），正文 + 路径双路 BM25 → RRF。
 - 处理 PPTX / DOCX / PDF / XLSX / TXT / Markdown；扫描版 PDF 取内嵌页图 → OCR。
-- OCR 双通道：tesseract.js 兜底（离线），macOS Vision 可选（probe + 自动回退）。
+- OCR 双通道：tesseract.js 兜底，macOS Vision 可选（probe + 自动回退）。
 - 反馈学习：用户确认/纠正后记住用词，下次检索自动前置改写。
 - 本地优先：插件自身除可选的查询改写外不发起网络请求；**读页验证会把原文交给当前会话模型**，要严格本地请配合本地模型使用。
 
