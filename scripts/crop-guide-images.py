@@ -1,11 +1,12 @@
-"""Produce the two guide images from one source screenshot.
+"""Produce the Windows guide images from one source screenshot.
 
     python scripts/crop-guide-images.py <source.png>
 
-Source: the DeepSeek Harness product page at 2533x1599. Everything here is in
-source pixels so a re-screenshot only needs the four numbers re-measured.
+The macOS guide uses its own pair (hero-shot.png, step-01-menu.png) and is not
+touched here. Source is the product page at 2533x1599; the geometry below is in
+source pixels, so a re-screenshot only needs BUTTON re-measured.
 
-Writes docs/img/hero-shot.png and docs/img/step-01-menu.png.
+Writes docs/img/windows-page.png and docs/img/windows-button.png.
 """
 
 import sys
@@ -36,21 +37,21 @@ def crop_to_ratio(img: Image.Image, box: tuple, ratio: float) -> Image.Image:
 
 
 def main() -> None:
-    source = Path(sys.argv[1] if len(sys.argv) > 1 else HERE / ".tmp-hero.png")
+    source = Path(sys.argv[1]) if len(sys.argv) > 1 else HERE / "windows-page-source.png"
     img = Image.open(source).convert("RGB")
     w, h = img.size
     print(f"source: {w}x{h}")
 
-    hero = crop_to_ratio(img, (0, 0, w, round(h * 0.99)), HERO_RATIO)
-    hero.save(OUT / "hero-shot.png", optimize=True)
-    print(f"hero-shot.png: {hero.size[0]}x{hero.size[1]}")
+    page = crop_to_ratio(img, (0, 0, w, round(h * 0.99)), HERO_RATIO)
+    page.save(OUT / "windows-page.png", optimize=True)
+    print(f"windows-page.png: {page.size[0]}x{page.size[1]}")
 
     # Step 1 points at the button itself, arrow control included, so the reader can
     # see which half downloads and which half opens the menu.
-    step = img.crop(BUTTON)
-    step = step.resize((step.size[0] * 2, step.size[1] * 2), Image.LANCZOS)
-    step.save(OUT / "step-01-menu.png", optimize=True)
-    print(f"step-01-menu.png: {step.size[0]}x{step.size[1]}")
+    button = img.crop(BUTTON)
+    button = button.resize((button.size[0] * 2, button.size[1] * 2), Image.LANCZOS)
+    button.save(OUT / "windows-button.png", optimize=True)
+    print(f"windows-button.png: {button.size[0]}x{button.size[1]}")
 
 
 if __name__ == "__main__":

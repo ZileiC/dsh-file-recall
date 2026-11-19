@@ -1,11 +1,11 @@
 # 配图说明
 
-两份指南共用同一套图和样式：
+两份指南各有各的图，互不覆盖：
 
-| 源文件 | 单文件版 |
-|---|---|
-| `docs/install-universal.html` | `docs/install-universal-standalone.html` |
-| `docs/install-windows.html` | `docs/install-windows-standalone.html` |
+| 指南 | 源文件 | 单文件版 | 图 |
+|---|---|---|---|
+| macOS | `docs/install-universal.html` | `docs/install-universal-standalone.html` | `hero-shot.png`、`step-01-menu.png` |
+| Windows | `docs/install-windows.html` | `docs/install-windows-standalone.html` | `windows-page.png`、`windows-button.png` |
 
 改完源文件后重跑对应那条：
 
@@ -18,20 +18,22 @@ node scripts/bundle-guide.mjs --source install-windows.html --out install-window
 
 > 为什么要有单文件版：只发 HTML 不带 `img/` 文件夹时，相对路径全部失效——手机上就是「图片不显示」。内嵌后一个文件到哪都能开。
 
-## 两张真图
+## 真图
 
-两张都从同一张官网截图裁出来，用脚本生成，不要手工裁：
+| 文件 | 用在 | 内容 | 尺寸 |
+|---|---|---|---|
+| `hero-shot.png` | macOS 页首 | 官网整页，下载菜单展开，第一项是 macOS | 1318×823 |
+| `step-01-menu.png` | macOS 第 1 步 | 展开菜单的特写 | 896×560 |
+| `windows-page.png` | Windows 页首 | 官网整页，按钮上写 Download for Windows | 2533×1583 |
+| `windows-button.png` | Windows 第 1 步 | 下载按钮，含右侧箭头，菜单收起 | 880×180 |
+
+Windows 那两张用脚本从一张新截图裁出来：
 
 ```bash
 python scripts/crop-guide-images.py <官网截图.png>
 ```
 
-| 文件 | 用在哪 | 内容 | 尺寸 |
-|---|---|---|---|
-| `hero-shot.png` | 页首右侧的「产品肖像」 | 官网整页：标题 + 下载按钮 + 一点产品窗口 | 2533×1583 |
-| `step-01-menu.png` | 第 1 步正文里 | 下载按钮本身，含右侧箭头 | 880×180 |
-
-换新截图时，重新量一下按钮在源图里的位置，改 `scripts/crop-guide-images.py` 里的 `BUTTON` 就行。
+换截图时重新量一下按钮在源图里的位置，改脚本里的 `BUTTON` 即可。
 
 ## 六个示意图（不占图片文件）
 

@@ -27,7 +27,9 @@ export const DOCS_FILES = [
   'guide.js',
   'img/README.md', // referenced by the guide as a note for whoever replaces the screenshots
   'img/hero-shot.png',
-  'img/step-01-menu.png'
+  'img/step-01-menu.png',
+  'img/windows-page.png',
+  'img/windows-button.png'
 ]
 
 /** Paths (relative to the repo) that must never appear in the site. */
