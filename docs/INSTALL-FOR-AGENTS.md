@@ -30,7 +30,7 @@ npm install --omit=dev --omit=optional
 
 `--omit=optional` 是必须的：它排除 `pdfjs-dist` 的可选原生 canvas。插件零 `.node` 依赖，跨平台可搬。
 
-**B. 离线包（目标机器没有 Node / npm / git，推荐给长辈的机器）**
+**B. 离线包（目标机器没有 Node / npm / git 时用这个）**
 
 下载 Release 里的 `dsh-file-recall-<版本>.zip`，解压得到一个目录：
 
@@ -150,7 +150,7 @@ file_recall_tidy { action: "undo", confirm: true, dryRun: false }   // 出事就
 
 ---
 
-## 7. 验收清单（装完请逐条确认）
+## 7. 装完逐条确认
 
 - [ ] 五个工具都在
 - [ ] `file-recall` 与 `file-tidy` 两个 skill 都在

@@ -10,18 +10,16 @@ import { buildStandalone, findExternalReferences } from '../scripts/bundle-guide
  * The guide is delivered as ONE file, opened on a phone, with no sibling folder.
  *
  * The bug these tests exist for shipped once: every image was a relative path,
- * everything looked right in the repo, and the phone showed an empty page. Local
- * verification in the wrong environment is not verification.
+ * everything looked right in the repo, and the phone showed an empty page. Then
+ * the same class of bug nearly shipped again when the stylesheet moved out of the
+ * page: a single file pointing at guide.css opens completely unstyled.
+ *
+ * Local verification in the wrong environment is not verification.
  */
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-const sourceHtml = readFileSync(join(root, 'docs', 'install.html'), 'utf8')
-const standaloneHtml = readFileSync(join(root, 'docs', 'install-standalone.html'), 'utf8')
-const universalHtml = readFileSync(join(root, 'docs', 'install-universal.html'), 'utf8')
-const universalStandaloneHtml = readFileSync(
-  join(root, 'docs', 'install-universal-standalone.html'),
-  'utf8',
-)
+const sourceHtml = readFileSync(join(root, 'docs', 'install-universal.html'), 'utf8')
+const standaloneHtml = readFileSync(join(root, 'docs', 'install-universal-standalone.html'), 'utf8')
 
 /** Strip tags so the checks read prose, not markup. */
 function proseOf(html) {
@@ -50,17 +48,21 @@ function writingTells(text) {
 }
 
 test('the deliverable has no local file references at all', () => {
-  for (const [name, html] of [
-    ['install-standalone.html', standaloneHtml],
-    ['install-universal-standalone.html', universalStandaloneHtml],
-  ]) {
-    const external = findExternalReferences(html)
-    assert.deepEqual(
-      external,
-      [],
-      `${name} must not reference local files; found: ${external.join(', ')}`,
-    )
-  }
+  const external = findExternalReferences(standaloneHtml)
+  assert.deepEqual(
+    external,
+    [],
+    `install-universal-standalone.html must not reference local files; found: ${external.join(', ')}`,
+  )
+})
+
+test('the single file carries its own stylesheet and behaviour', () => {
+  // A file that links guide.css opens unstyled when it travels alone.
+  assert.match(standaloneHtml, /<style>[\s\S]{500,}<\/style>/, 'stylesheet was not inlined')
+  assert.match(standaloneHtml, /<script>[\s\S]{500,}<\/script>/, 'behaviour was not inlined')
+  assert.ok(standaloneHtml.includes('--navy-900'), 'design tokens missing from the single file')
+  assert.ok(standaloneHtml.includes("querySelectorAll('.tl li')"), 'timeline script missing')
+  assert.ok(standaloneHtml.includes('navigator.clipboard'), 'copy behaviour missing')
 })
 
 test('every image in the deliverable is a data URI', () => {
@@ -74,62 +76,62 @@ test('every image in the deliverable is a data URI', () => {
 test('the committed single file is up to date with the source page', () => {
   // Rebuild in memory and compare: editing a page without re-running the bundler
   // must fail here, not in the recipient's hands.
-  for (const [source, committed] of [
-    ['install.html', standaloneHtml],
-    ['install-universal.html', universalStandaloneHtml],
-  ]) {
-    const { html } = buildStandalone({ root, source })
-    assert.equal(
-      committed,
-      html,
-      `${source}'s single-file build is stale — run: node scripts/bundle-guide.mjs`,
-    )
-  }
+  const { html } = buildStandalone({ root, source: 'install-universal.html' })
+  assert.equal(
+    standaloneHtml,
+    html,
+    "install-universal.html's single-file build is stale — run: node scripts/bundle-guide.mjs",
+  )
 })
 
 test('the source page keeps its images next to it, and they exist', () => {
   const refs = [...sourceHtml.matchAll(/src="(img\/[^"]+)"/g)].map((m) => m[1])
   assert.ok(refs.length >= 2, 'source page should reference the two real screenshots')
   for (const relPath of refs) {
-    const absolute = join(root, 'docs', relPath)
-    const bytes = readFileSync(absolute) // throws when missing
+    const bytes = readFileSync(join(root, 'docs', relPath)) // throws when missing
     assert.ok(bytes.length > 10_000, `${relPath} looks truncated (${bytes.length} bytes)`)
     assert.equal(bytes[0], 0x89, `${relPath} is not a PNG`)
   }
 })
 
 test('the guide offers no command line to the reader', () => {
-  // A reader-facing page must not hand him terminal commands; the two copyable
-  // blocks in step 4 are prose addressed to the agent.
+  // A reader-facing page must not hand them terminal commands; the copyable blocks
+  // are prose addressed to the agent.
   const codeBlocks = [...sourceHtml.matchAll(/<pre class="copy"[^>]*>([\s\S]*?)<\/pre>/g)]
   assert.ok(codeBlocks.length >= 4, 'expected the four copyable blocks')
   for (const [, body] of codeBlocks) {
-    assert.doesNotMatch(body, /(^|\n)\s*(sudo|npm|npx|git clone|brew)\b/, `terminal command leaked into the page: ${body.slice(0, 60)}`)
+    assert.doesNotMatch(
+      body,
+      /(^|\n)\s*(sudo|npm|npx|git clone|brew)\b/,
+      `terminal command leaked into the page: ${body.slice(0, 60)}`,
+    )
   }
 })
 
-test('both guides read like writing, not like generated text', () => {
-  for (const [name, html] of [
-    ['install.html', sourceHtml],
-    ['install-universal.html', universalHtml],
-  ]) {
-    const tells = Object.entries(writingTells(proseOf(html))).filter(([, count]) => count > 0)
-    assert.deepEqual(tells, [], `${name} still carries machine-writing markers: ${JSON.stringify(tells)}`)
-  }
+test('the guide reads like writing, not like generated text', () => {
+  const tells = Object.entries(writingTells(proseOf(sourceHtml))).filter(([, count]) => count > 0)
+  assert.deepEqual(tells, [], `install-universal.html still carries machine-writing markers: ${JSON.stringify(tells)}`)
 })
 
-test('the universal guide addresses a general macOS reader', () => {
-  // It must not assume the father: no family references, and no joke persona.
-  assert.doesNotMatch(universalHtml, /陈孜磊|打工的|老爸|爸/, 'universal copy still talks to one specific person')
-  assert.doesNotMatch(universalHtml, /自我介绍一下/, 'the personal intro belongs to the father version only')
+test('the public guide addresses a general macOS reader', () => {
+  // The public repository must not carry anyone's family context or real name.
+  // The words are base64-encoded on purpose: a guard that spells out the real name
+  // would republish the thing it protects.
+  const forbidden = ['5oiR54i4', '5L2g54i4', '6ZmI5a2c56OK', '5omT5bel55qE', '6ICB54i4'].map(
+    (b64) => Buffer.from(b64, 'base64').toString('utf8'),
+  )
+  for (const word of forbidden) {
+    assert.equal(sourceHtml.includes(word), false, `public copy still addresses one specific person ("${word[0]}…")`)
+  }
+  assert.equal(sourceHtml.includes('自我介绍一下'), false, 'a personal intro does not belong in the public guide')
   // It must still keep the two hard-won instructions.
-  assert.match(universalHtml, /不要直接点它/, 'the Windows button trap must stay explained')
-  assert.match(universalHtml, /releases\/latest/, 'the offline fallback must stay reachable')
+  assert.match(sourceHtml, /不要直接点它/, 'the Windows button trap must stay explained')
+  assert.match(sourceHtml, /releases\/latest/, 'the offline fallback must stay reachable')
 })
 
-test('the universal guide keeps the same structure as the father version', () => {
-  const steps = (html) => [...html.matchAll(/<section class="step" id="(s\d)">/g)].map((m) => m[1])
-  assert.deepEqual(steps(universalHtml), steps(sourceHtml), 'step ids diverged between the two guides')
-  assert.equal((universalHtml.match(/<svg /g) || []).length, (sourceHtml.match(/<svg /g) || []).length)
-  assert.equal((universalHtml.match(/data-copy/g) || []).length, (sourceHtml.match(/data-copy/g) || []).length)
+test('the public guide keeps the seven-step structure', () => {
+  const steps = [...sourceHtml.matchAll(/<section class="step" id="(s\d)">/g)].map((m) => m[1])
+  assert.deepEqual(steps, ['s1', 's2', 's3', 's4', 's5', 's6', 's7'])
+  assert.equal((sourceHtml.match(/<svg /g) || []).length, 6, 'expected six action diagrams')
+  assert.equal((sourceHtml.match(/data-copy/g) || []).length, 4, 'expected four copyable blocks')
 })

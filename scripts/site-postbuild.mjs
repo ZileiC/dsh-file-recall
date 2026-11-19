@@ -1,104 +1,51 @@
 #!/usr/bin/env node
 /**
- * Two post-build steps for the Pages artifact:
+ * Assembles the publishable site from an explicit manifest.
  *
  *   node scripts/site-postbuild.mjs <site-dir>
  *
- * 1. Turn the .md files that ship in docs/ into pages. Pages otherwise serves
- *    them as raw text, which looks broken next to a styled guide. This looks for
- *    the generated twin (<name>.html next to <name>.md) and, when there is none,
- *    wraps the Markdown in a minimal shell so the link still lands somewhere.
- * 2. Check the badges in the README through this machine's network. A badge in
- *    this repo is a promise that the image renders; adding one that silently 502s
- *    is worse than having none, so the deploy fails instead.
+ * The manifest is the whole point: an earlier version copied `docs/` wholesale,
+ * which published an internal acceptance note containing a real client engagement.
+ * Nothing is published unless it is named in scripts/site-manifest.mjs, and the
+ * build refuses if a forbidden name manages to get in anyway.
+ *
+ * Also checks that every badge in the README actually renders: a badge that 200s
+ * with an error picture is broken too.
  */
-import { readdirSync, existsSync, writeFileSync, readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync, existsSync } from 'node:fs'
 import { join, dirname, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+import { ROOT_FILES, DOCS_FILES, FORBIDDEN } from './site-manifest.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const repo = join(here, '..')
 
-const escapeHtml = (s) =>
-  s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
-
-/** Markdown -> the smallest useful HTML, for docs Pages has no generated twin for. */
-export function minimalPage(markdown, title, cssHref = 'guide.css') {
-  const lines = markdown.replace(/\r\n/g, '\n').split('\n')
-  const out = []
-  let inCode = false
-  const code = []
-
-  for (const line of lines) {
-    if (/^```/.test(line)) {
-      if (inCode) {
-        out.push(`<pre class="code"><code>${escapeHtml(code.join('\n'))}</code></pre>`)
-        code.length = 0
-        inCode = false
-      } else {
-        inCode = true
-      }
-      continue
-    }
-    if (inCode) { code.push(line); continue }
-
-    const heading = line.match(/^(#{1,6})\s+(.*)$/)
-    if (heading) {
-      out.push(`<h${heading[1].length}>${escapeHtml(heading[2])}</h${heading[1].length}>`)
-      continue
-    }
-    if (!line.trim()) continue
-    const text = escapeHtml(line)
-      .replace(/`([^`]+)`/g, '<code>$1</code>')
-      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    out.push(`<p>${text}</p>`)
+/** Copy exactly what the manifest allows. Returns the published file list. */
+export function assemble(siteDir) {
+  const published = []
+  for (const name of ROOT_FILES) {
+    const from = join(repo, name)
+    if (!existsSync(from)) throw new Error(`manifest names a root file that does not exist: ${name}`)
+    mkdirSync(siteDir, { recursive: true })
+    copyFileSync(from, join(siteDir, name))
+    published.push(name)
   }
-  if (inCode && code.length) out.push(`<pre class="code"><code>${escapeHtml(code.join('\n'))}</code></pre>`)
-
-  return `<!DOCTYPE html>
-<html lang="zh-CN"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(title)} · dsh-file-recall</title>
-<link rel="stylesheet" href="${cssHref}">
-<style>
-  .prose { max-width: 62rem; margin: 0 auto; padding: 3rem 1.5rem 6rem; }
-  .prose h1 { font-size: 1.9rem; margin: 0 0 1.4rem; }
-  .prose h2 { font-size: 1.25rem; margin: 2.4rem 0 .8rem; }
-  .prose h3 { font-size: 1.05rem; margin: 1.8rem 0 .6rem; }
-  .prose p { color: var(--ink-2); margin: 0 0 .9rem; }
-  .prose code { font-family: var(--mono); font-size: .9em; background: var(--rule-2); padding: .08em .32em; border-radius: 4px; }
-  .prose pre.code { font-family: var(--mono); font-size: 14px; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 1rem; overflow-x: auto; }
-  .prose pre.code code { background: none; padding: 0; }
-</style></head>
-<body><div class="prose">
-<p class="back"><a href="/">全部文档</a></p>
-${out.join('\n')}
-</div></body></html>
-`
-}
-
-export function convertMarkdownIn(siteDir) {
-  const written = []
-  // One sheet lives in docs/. A page at <site>/docs/ needs "guide.css"; a page at
-  // <site>/docs/img/ needs "../guide.css". Depth is counted from docs/, not from
-  // the site root, because that is where guide.css actually sits.
-  const docsDir = join(siteDir, 'docs')
-  const walk = (dir) => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const full = join(dir, entry.name)
-      if (entry.isDirectory()) { walk(full); continue }
-      if (!entry.name.endsWith('.md')) continue
-      const twin = full.slice(0, -'.md'.length) + '.html'
-      if (existsSync(twin)) continue // a generated page already exists
-      const title = entry.name.replace(/\.md$/, '')
-      const depth = relative(docsDir, dirname(full)).split(/[\\/]/).filter((seg) => seg && seg !== '.').length
-      const cssHref = depth > 0 ? '../'.repeat(depth) + 'guide.css' : 'guide.css'
-      writeFileSync(twin, minimalPage(readFileSync(full, 'utf8'), title, cssHref), 'utf8')
-      written.push(twin)
-    }
+  for (const name of DOCS_FILES) {
+    const from = join(repo, 'docs', name)
+    if (!existsSync(from)) throw new Error(`manifest names a docs file that does not exist: ${name}`)
+    const to = join(siteDir, 'docs', name)
+    mkdirSync(dirname(to), { recursive: true })
+    copyFileSync(from, to)
+    published.push(join('docs', name))
   }
-  walk(siteDir)
-  return written
+
+  // Belt and braces: nothing forbidden may reach the output, whatever the manifest says.
+  for (const item of published) {
+    const hit = FORBIDDEN.find((word) => item.toLowerCase().includes(word.toLowerCase()))
+    if (hit) throw new Error(`refusing to publish ${item}: matches forbidden pattern "${hit}"`)
+  }
+  return published
 }
 
 /** Every badge image referenced by the README, in document order. */
@@ -138,11 +85,11 @@ export async function checkBadges(urls, { timeoutMs = 20000 } = {}) {
 async function main() {
   const siteDir = process.argv[2]
   if (siteDir) {
-    const written = convertMarkdownIn(siteDir)
-    console.log(`markdown pages generated: ${written.length}`)
-    for (const f of written) console.log(`  + ${f}`)
+    const published = assemble(siteDir)
+    console.log(`published ${published.length} files from the manifest:`)
+    for (const f of published) console.log(`  + ${f}`)
   } else {
-    console.log('no site dir given: skipping markdown conversion')
+    console.log('no site dir given: skipping assembly')
   }
 
   const readme = readFileSync(join(repo, 'README.md'), 'utf8')

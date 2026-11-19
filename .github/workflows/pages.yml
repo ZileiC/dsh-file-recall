@@ -10,6 +10,7 @@ on:
       - 'docs/**'
       - 'scripts/agent-guide.mjs'
       - 'scripts/site-postbuild.mjs'
+      - 'scripts/site-manifest.mjs'
       - 'scripts/check-site.mjs'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
@@ -40,17 +41,10 @@ jobs:
 
       - uses: actions/configure-pages@v5
 
-      - name: Assemble the site
-        run: |
-          rm -rf _site
-          mkdir -p _site
-          cp index.html icon.svg _site/
-          cp -r docs _site/docs
-          ls -R _site | head -40
-
-      # Turns the .md files into pages, and fails the deploy when a README badge
-      # no longer renders (a 200 with an error picture counts as broken).
-      - name: Markdown pages and badge check
+      # Nothing is published unless scripts/site-manifest.mjs names it. Copying
+      # docs/ wholesale once published an internal acceptance note; that is why
+      # this step assembles from a list instead.
+      - name: Assemble the site from the manifest
         run: node scripts/site-postbuild.mjs _site
 
       - name: Check every local link resolves

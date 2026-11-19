@@ -3,19 +3,19 @@
  *
  *   node scripts/bundle-guide.mjs
  *
- * Why: the guides reference `img/hero-shot.png` and `guide.css` / `guide.js` by
+ * Why: the guide references `img/hero-shot.png` and `guide.css` / `guide.js` by
  * relative path. That works when the folder travels together, and breaks the
  * moment the file is sent on its own — which is exactly how this guide gets
- * delivered (a .html in a chat message, opened on a phone). Base64 data URIs make
- * one file that works anywhere, with no network and no sibling folder.
+ * delivered (a .html in a chat message, opened on a phone). Data URIs and inline
+ * blocks make one file that works anywhere, with no network and no sibling folder.
  *
- * Since the two pages share docs/guide.css and docs/guide.js, this bundler inlines
- * those too: a single file that still pointed at guide.css would open completely
- * unstyled, which is the same class of bug as the missing images.
+ * Only the universal guide ships publicly. The personal version written for one
+ * specific reader lives outside the repository (see ../private-notes) and is
+ * bundled by the same function when someone runs it locally.
  *
  * The build is exposed as a pure function so a test can rebuild in memory and
- * compare against the committed file: editing install.html without re-running this
- * then fails the suite instead of shipping stale images.
+ * compare against the committed file: editing the source page without re-running
+ * this then fails the suite instead of shipping a stale bundle.
  */
 
 import { readFileSync, statSync, writeFileSync } from 'node:fs'
@@ -33,17 +33,19 @@ const MIME = {
 /**
  * Build the single-file HTML in memory.
  *
- * @param {{ root: string, source?: string }} input repository root, and the page
- *   to bundle (relative to docs/); defaults to install.html
+ * @param {{ root: string, source?: string, docsDir?: string }} input repository
+ *   root, the page to bundle (relative to docs/), and an optional different
+ *   directory to read the page and its assets from
  * @returns {{ html: string, inlined: Array<{ relPath: string, bytes: number }> }}
  */
-export function buildStandalone({ root, source = 'install.html' }) {
-  const sourcePath = join(root, 'docs', source)
+export function buildStandalone({ root, source = 'install-universal.html', docsDir = 'docs' }) {
+  const base = join(root, docsDir)
+  const sourcePath = join(base, source)
   let html = readFileSync(sourcePath, 'utf8')
   const inlined = []
 
   html = html.replace(/src="(img\/[^"]+)"/g, (whole, relPath) => {
-    const absolute = join(root, 'docs', relPath)
+    const absolute = join(base, relPath)
     const bytes = readFileSync(absolute)
     const mime = MIME[extname(absolute).toLowerCase()]
     if (!mime) throw new Error(`unsupported image type: ${relPath}`)
@@ -53,11 +55,11 @@ export function buildStandalone({ root, source = 'install.html' }) {
 
   // The shared stylesheet becomes a <style> block with its relative url()s inlined.
   html = html.replace(/<link rel="stylesheet" href="([^"]+)">/g, (whole, relPath) => {
-    const absolute = join(root, 'docs', relPath)
+    const absolute = join(base, relPath)
     let css = readFileSync(absolute, 'utf8')
     css = css.replace(/url\((['"]?)([^)'"]+)\1\)/g, (inner, quote, ref) => {
       if (/^(data:|https?:)/.test(ref)) return inner
-      const assetPath = join(root, 'docs', ref)
+      const assetPath = join(base, ref)
       const bytes = readFileSync(assetPath)
       const mime = MIME[extname(assetPath).toLowerCase()]
       if (!mime) throw new Error(`unsupported asset in ${relPath}: ${ref}`)
@@ -69,7 +71,7 @@ export function buildStandalone({ root, source = 'install.html' }) {
 
   // The shared behaviour becomes an inline <script>.
   html = html.replace(/<script src="([^"]+)"><\/script>/g, (whole, relPath) => {
-    const absolute = join(root, 'docs', relPath)
+    const absolute = join(base, relPath)
     const js = readFileSync(absolute, 'utf8')
     inlined.push({ relPath, bytes: Buffer.byteLength(js, 'utf8') })
     return `<script>\n${js}\n</script>`
@@ -110,32 +112,35 @@ const invokedDirectly =
 
 if (invokedDirectly) {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-  const targets = [
-    { source: 'install.html', output: 'install-standalone.html' },
-    { source: 'install-universal.html', output: 'install-universal-standalone.html' },
-  ]
-  for (const target of targets) {
-    const outPath = join(root, 'docs', target.output)
-    const { html, inlined } = buildStandalone({ root, source: target.source })
-    writeFileSync(outPath, html, 'utf8')
-    const externalRefs = findExternalReferences(html)
-    if (externalRefs.length) {
-      throw new Error(`${target.output} still references local files: ${externalRefs.join(', ')}`)
-    }
-    console.log(
-      JSON.stringify(
-        {
-          output: outPath,
-          kb: Math.round(statSync(outPath).size / 1024),
-          inlined: inlined.map((entry) => ({
-            path: entry.relPath,
-            kb: Math.round(entry.bytes / 1024),
-          })),
-          externalImageRefs: (html.match(/src="img\//g) || []).length,
-        },
-        null,
-        2,
-      ),
-    )
+  // Only the public, generic guide is committed. Pass --source / --out / --docs-dir
+  // to bundle a different page (for example the personal one kept outside the repo).
+  const args = process.argv.slice(2)
+  const arg = (name, fallback) => {
+    const at = args.indexOf(`--${name}`)
+    return at >= 0 && args[at + 1] ? args[at + 1] : fallback
   }
+  const source = arg('source', 'install-universal.html')
+  const output = arg('out', 'install-universal-standalone.html')
+  const docsDir = arg('docs-dir', 'docs')
+
+  const outPath = join(root, docsDir, output)
+  const { html, inlined } = buildStandalone({ root, source, docsDir })
+  writeFileSync(outPath, html, 'utf8')
+
+  const externalRefs = findExternalReferences(html)
+  if (externalRefs.length) {
+    throw new Error(`${output} still references local files: ${externalRefs.join(', ')}`)
+  }
+  console.log(
+    JSON.stringify(
+      {
+        output: outPath,
+        kb: Math.round(statSync(outPath).size / 1024),
+        inlined: inlined.map((entry) => ({ path: entry.relPath, kb: Math.round(entry.bytes / 1024) })),
+        externalImageRefs: (html.match(/src="img\//g) || []).length,
+      },
+      null,
+      2,
+    ),
+  )
 }

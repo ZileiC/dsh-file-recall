@@ -1,48 +1,47 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, cpSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdtempSync, rmSync, readdirSync, statSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 
 import { checkSite, localRefs } from '../scripts/check-site.mjs'
-import { badgesIn, convertMarkdownIn, minimalPage } from '../scripts/site-postbuild.mjs'
+import { assemble, badgesIn } from '../scripts/site-postbuild.mjs'
+import { ROOT_FILES, DOCS_FILES, FORBIDDEN } from '../scripts/site-manifest.mjs'
 import { parse, renderBody, buildPage as buildAgentPage } from '../scripts/agent-guide.mjs'
 
 /**
- * The published site is a real delivery channel: /docs/ pages linked from the
- * README. A link that only worked in the repo (or only on Windows) shipped once
- * already in spirit, so these tests run against an assembled _site, not the repo.
+ * The published site is a real delivery channel, and it leaked once.
+ *
+ * An earlier version of this script copied `docs/` wholesale onto GitHub Pages,
+ * which published an internal acceptance note quoting a real client engagement.
+ * These tests exist so that cannot happen again: the site is assembled from an
+ * explicit manifest, and a privacy scan runs over everything that ships.
  */
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 
-function assembleSite() {
+function assembled() {
   const dir = mkdtempSync(join(tmpdir(), 'dsh-site-'))
-  cpSync(join(root, 'index.html'), join(dir, 'index.html'))
-  cpSync(join(root, 'icon.svg'), join(dir, 'icon.svg'))
-  mkdirSync(join(dir, 'docs'), { recursive: true })
-  for (const name of [
-    'install.html',
-    'install-universal.html',
-    'install-standalone.html',
-    'install-universal-standalone.html',
-    'INSTALL-FOR-AGENTS.html',
-    'guide.css',
-    'guide.js',
-  ]) {
-    cpSync(join(root, 'docs', name), join(dir, 'docs', name))
-  }
-  mkdirSync(join(dir, 'docs', 'img'), { recursive: true })
-  cpSync(join(root, 'docs', 'img'), join(dir, 'docs', 'img'), { recursive: true })
+  assemble(dir)
   return dir
 }
 
+function walk(dir) {
+  const out = []
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name)
+    if (entry.isDirectory()) out.push(...walk(full))
+    else out.push(full)
+  }
+  return out
+}
+
 test('the assembled site has no broken local link', () => {
-  const site = assembleSite()
+  const site = assembled()
   try {
     const { pages, problems } = checkSite(site)
-    assert.ok(pages >= 6, `expected the site pages, saw ${pages}`)
+    assert.ok(pages >= 3, `expected the site pages, saw ${pages}`)
     assert.deepEqual(problems, [], `broken links on the site: ${problems.join('; ')}`)
   } finally {
     rmSync(site, { recursive: true, force: true })
@@ -51,10 +50,10 @@ test('the assembled site has no broken local link', () => {
 
 test('the link checker actually fails on a broken link', () => {
   // A checker that never fails is decoration. Prove it catches the real thing.
-  const site = assembleSite()
+  const site = assembled()
   try {
-    const page = join(site, 'docs', 'install.html')
-    writeFileSync(page, readFileSync(page, 'utf8') + '<a href="missing-page.html">x</a>')
+    const page = join(site, 'docs', 'install-universal.html')
+    writeFileSync(page, readFileSync(page, 'utf8') + '<a href="missing-page.html">x</a>', 'utf8')
     const { problems } = checkSite(site)
     assert.ok(
       problems.some((p) => p.includes('missing-page.html')),
@@ -66,14 +65,14 @@ test('the link checker actually fails on a broken link', () => {
 })
 
 test('a url fragment is not mistaken for a root link', () => {
-  // "/ZileiC/dsh-file-recall#readme" used to be split at "#" into "/ZileiC/..."
-  // and reported as a missing local directory.
+  // "/ZileiC/dsh-file-recall#readme" used to be split at "#" and reported as a
+  // missing local directory.
   const html = '<a href="https://github.com/x/y#readme">r</a><a href="/docs/a.html#top">a</a><a href="/">home</a>'
   assert.deepEqual(localRefs(html), ['/docs/a.html#top', '/'])
 })
 
-test('both install guides render from the shared stylesheet and script', () => {
-  for (const name of ['install.html', 'install-universal.html']) {
+test('both published pages render from the shared stylesheet and script', () => {
+  for (const name of ['install-universal.html']) {
     const html = readFileSync(join(root, 'docs', name), 'utf8')
     assert.match(html, /<link rel="stylesheet" href="guide\.css">/, `${name} must use the shared sheet`)
     assert.match(html, /<script src="guide\.js"><\/script>/, `${name} must use the shared script`)
@@ -112,45 +111,101 @@ test('the markdown subset renders structure, not raw syntax', () => {
   assert.doesNotMatch(html, /^\|/m, 'a table row leaked through as literal pipes')
 })
 
-test('the generated markdown pages reach guide.css from any depth', () => {
-  const site = assembleSite()
+test('the publish manifest names every file that actually ships', () => {
+  // Nothing may reach the site that the manifest does not name. If someone adds a
+  // file to docs/ expecting it online, this is where they find out it does not.
+  const site = assembled()
   try {
-    const written = convertMarkdownIn(site)
-    for (const file of written) {
-      const html = readFileSync(file, 'utf8')
-      const href = (html.match(/<link rel="stylesheet" href="([^"]+)">/) || [])[1]
-      assert.ok(href, `${file} has no stylesheet link`)
-      const target = resolve(dirname(file), href)
-      assert.ok(existsSyncSafe(target), `${file} points at a missing ${href}`)
-    }
-    // Markdown shares a folder with its generated twin: the twin wins, no clobber.
-    const keep = readFileSync(join(root, 'docs', 'INSTALL-FOR-AGENTS.html'), 'utf8')
-    assert.ok(keep.length > 1000)
+    const shipped = walk(site)
+      .map((f) => f.slice(site.length + 1).split('\\').join('/'))
+      .sort()
+    const expected = [
+      ...ROOT_FILES,
+      ...DOCS_FILES.map((f) => 'docs/' + f),
+    ].sort()
+    assert.deepEqual(shipped, expected)
   } finally {
     rmSync(site, { recursive: true, force: true })
   }
 })
 
-function existsSyncSafe(path) {
+test('no published page or asset mentions a person, a client or an internal note', () => {
+  // The regression this exists for: an internal acceptance note quoting a real
+  // client engagement shipped to a public URL. Scan what actually ships, not what
+  // the manifest claims.
+  //
+  // The words are stored base64-encoded on purpose. A guard that lists the real
+  // name and the real client names in plain text would republish exactly what it
+  // is meant to protect. Decode at run time; never paste the literals here.
+  const encoded = [
+    ['2', '54i25Lqy'],       // family: father
+    ['2', '5YS/5a2Q'],       // family: son
+    ['2', '54i454i4'],       // family: dad
+    ['2', '6ZW/6L6I'],       // family: elder
+    ['2', '6ICB5aaI'],       // family: mother
+    ['2', '5aaI5aaI'],       // family: mum
+    ['2', '5Z2m5YWL'],       // client name (1 char)
+    ['2', '5p6B5rCq'],       // client name (1 char)
+    ['2', '54yb5aOr'],       // client name (1 char)
+    ['4', '5L2T5qOA5oql5ZGK'], // personal record type
+    ['2', '55eF5Y6G'],
+    ['4', '6aqM5pS25riF5Y2V'], // internal process word
+    ['4', '5Lq65bel6aqM5pS2'], // internal process word
+    ['3', '6ZmI5a2c56OK'],     // the repo owner's real name
+    ['3', '5omT5bel55qE'],
+    ['2', '6ICB54i4']
+  ]
+  const forbiddenText = encoded.map(([len, b64]) => {
+    const word = Buffer.from(b64, 'base64').toString('utf8')
+    assert.equal(word.length, Number(len), 'encoded guard word is corrupt')
+    return new RegExp(word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+  })
+  // Local machine paths, also encoded: a username in a regex is the same leak.
+  const user = Buffer.from('amhhcmF5ZGVu', 'base64').toString('utf8')
+  forbiddenText.push(new RegExp(`C:\\\\Users|D:\\\\obsidian|${user}`, 'i'))
+  const site = assembled()
   try {
-    readFileSync(path)
-    return true
-  } catch {
-    return false
+    const offenders = []
+    for (const file of walk(site)) {
+      const name = file.slice(site.length + 1)
+      for (const word of FORBIDDEN) {
+        if (name.toLowerCase().includes(word.toLowerCase())) offenders.push(`${name} (filename)`)
+      }
+      if (!/\.(html|css|js|md|json|svg)$/i.test(file)) continue
+      const text = readFileSync(file, 'utf8')
+      for (const re of forbiddenText) {
+        const hit = text.match(re)
+        if (hit) offenders.push(`${name}: ${hit[0]}`)
+      }
+    }
+    assert.deepEqual(offenders, [], `published site carries private content: ${offenders.join('; ')}`)
+  } finally {
+    rmSync(site, { recursive: true, force: true })
   }
-}
+})
 
-test('every README badge is served by one host that renders', () => {
+test('internal development notes are not in the repository at all', () => {
+  // They live outside the repo now (../private-notes). Making them public was the
+  // incident, so this asserts they are simply absent.
+  for (const gone of ['docs/ACCEPTANCE.md', 'docs/design-notes.md', 'docs/GUIDE-SPEC.md']) {
+    let exists = true
+    try {
+      statSync(join(root, gone))
+    } catch {
+      exists = false
+    }
+    assert.equal(exists, false, `${gone} must not live in a public repo`)
+  }
+})
+
+test('every README badge is served by one reachable host', () => {
   const readme = readFileSync(join(root, 'README.md'), 'utf8')
   const urls = badgesIn(readme)
   assert.ok(urls.length >= 8, `expected a full badge row, saw ${urls.length}`)
 
   // shields.io resolves intermittently from mainland China; a badge that fails to
-  // render is worse than no badge. Live reachability is checked separately by
-  // scripts/site-postbuild.mjs in CI, which is where the network is reliable.
-  const hosts = new Set(urls.map((u) => new URL(u).host))
-  assert.deepEqual([...hosts], ['badgen.net'], `badges must come from one reachable host, saw ${[...hosts].join(', ')}`)
-
+  // render is worse than no badge. Live reachability is checked by
+  // scripts/site-postbuild.mjs in CI, where the network is reliable.
   for (const url of urls) {
     assert.match(url, /^https:\/\/badgen\.net\//, `unexpected badge host: ${url}`)
   }

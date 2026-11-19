@@ -50,9 +50,9 @@ DeepSeek Harness 插件：在本地资料库中按模糊描述定位**文件与�
 
 ## 状态
 
-M1 功能完成：抽取 / OCR（含扫描 PDF 页面栅格化）/ 分批建库 / 检索证据 / 反馈学习 / runtime skill 均已实现；单测 198/198、E2E、60 条 ToT 合成评测与 1k chunk 性能通过；自包含 Mac 分发包已生成。**Mac 真机验收已通过**（见 [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md)）。
+M1 功能完成：抽取 / OCR（含扫描 PDF 页面栅格化）/ 分批建库 / 检索证据 / 反馈学习 / runtime skill 均已实现；单测 207/207、E2E、60 条 ToT 合成评测与 1k chunk 性能通过；自包含 Mac 分发包已生成，**已在 macOS 真机上跑通**。
 
-## 设计要点（已定）
+## 设计要点
 
 - 索引：`node:sqlite` + FTS5；中文写入时预切 **bigram**（trigram 对 2 字中文 0 命中）。
 - 抽取：纯 JS 自建（jszip + fast-xml-parser / mammoth / pdfjs-dist / exceljs），零 native。
@@ -92,7 +92,7 @@ M1 功能完成：抽取 / OCR（含扫描 PDF 页面栅格化）/ 分批建库 
 发布前**必须**跑 `node --test` + `node scripts/install-smoke.mjs`。单测通过不等于插件能用：`install-smoke` 会按 DSH 真实加载路径检查工具、skill、面板路由形态、API 版本标记与浏览器包，任何一项不符直接失败。
 
 ```text
-node --test                 # 单测（数量见 review.md）
+node --test                 # 单测
 node scripts/install-smoke.mjs  # 安装冒烟：工具 + skill + 路由 + apiVersion + client.js
 node scripts/e2e.mjs        # 真实 fixtures：sync → build → 6 条 gold 查询 → 空态 → evidence
 node scripts/eval.mjs       # 60 条合成 ToT 查询：top-1/top-5/MRR
@@ -117,12 +117,12 @@ node scripts/ocr-selfcheck.mjs test/fixtures/ocr-zh.png auto
 
 期望：`active provider: tesseract`、`source: tesseract`、文本包含「预算」。
 
-### macOS 自检（人工验收，必须在父亲的 Mac 上做）
+### macOS 自检
 
 1. 在插件目录执行 `node scripts/ocr-selfcheck.mjs <一张扫描页导出的 PNG> auto`。
 2. 期望 `active provider: vision`、`source: vision`、`fallbackFrom: (none)`，且文本包含页面上的中文关键词。
 3. 若 Vision 不可用或失败，输出应出现 `source: tesseract` 与 `fallbackFrom: vision`——这证明回退链路工作，但也说明 Vision 集成需要修；把 stderr 完整带回。
-4. 网络断开后重跑一次，确认仍然可用（离线验收）。
+4. 网络断开后重跑一次，确认仍然可用。
 5. 首次运行可能需要给 DSH/终端授予「完全磁盘访问」，否则读取受 TCC 保护的目录会失败。
 
 > M1 的 OCR 覆盖「独立图片」与「内嵌整页图像的扫描 PDF」；PPT 内嵌截图需要整页渲染，属 M2。
@@ -176,7 +176,7 @@ plugin_manager action=install_bundle target=<clone 下来的绝对路径>
 
 **给其他 agent 的安装教程：[`docs/INSTALL-FOR-AGENTS.md`](docs/INSTALL-FOR-AGENTS.md)**，含验收清单与常见故障表。
 
-整理方案的既定决策（不需要问用户）：
+整理方案的既定决策，不需要问用户：
 
 | 问题 | 规则 |
 |---|---|
@@ -198,15 +198,15 @@ node scripts/pack.mjs
 - tesseract.js 的 worker 从包内 `node_modules` 启动，所以必须**整个目录**一起拷贝。
 - 安装后：配置 `roots`（或让 agent 调 `file_recall_index action="configure"`）→ `sync` → 反复 `build` 到 done。
 
-## Mac 验收清单（人工，步骤 9）
+## macOS 验收清单
 
-- [ ] 整个 `dist/dsh-file-recall` 目录拷到 Mac，`install_bundle`，确认 4 个工具 + `file-recall` skill
+- [ ] 整个 `dist/dsh-file-recall` 目录拷到 Mac，`install_bundle`，确认 5 个工具 + 2 个 skill
 - [ ] `file_recall_index action="configure" roots=["/Users/.../资料"] confirm=true` → sync → build 到 done
 - [ ] `file_recall_index action="status"` 返回 `ocr.provider = vision`（或回退后的 tesseract）
 - [ ] 扫描 PDF 一页经 OCR 后 `file_recall_search` 能检索到
 - [ ] 拒绝磁盘访问时 `sync.errors` 出现 Full Disk Access 提示
-- [ ] 断网后 OCR 仍可用（离线）
-- [ ] 父亲真实资料 20 条 ToT 查询：top-5 命中率与 evidence 记录
+- [ ] 断网后 OCR 仍可用
+- [ ] 真实资料 20 条 ToT 查询：top-5 命中率与 evidence 记录
 
 ## 卸载
 

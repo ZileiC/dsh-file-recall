@@ -71,7 +71,7 @@
 cd dsh-file-recall
 npm install --omit=dev --omit=optional</code></pre>
 <p><code>--omit=optional</code> 是必须的：它排除 <code>pdfjs-dist</code> 的可选原生 canvas。插件零 <code>.node</code> 依赖，跨平台可搬。</p>
-<p><strong>B. 离线包（目标机器没有 Node / npm / git，推荐给长辈的机器）</strong></p>
+<p><strong>B. 离线包（目标机器没有 Node / npm / git 时用这个）</strong></p>
 <p>下载 Release 里的 <code>dsh-file-recall-&lt;版本&gt;.zip</code>，解压得到一个目录：</p>
 <pre class="code" tabindex="0"><code>https://github.com/ZileiC/dsh-file-recall/releases/latest</code></pre>
 <p>这个 zip <strong>已内含 <code>node_modules</code></strong>（生产依赖，0 个平台相关二进制），所以：</p>
@@ -147,7 +147,7 @@ file_recall_tidy { action: &quot;undo&quot;, confirm: true, dryRun: false }   //
 <tr><td>整理方案里出现 venv/构建目录</td><td>旧版本未排除</td><td>升级插件；新版整目录忽略并计入 <code>ignoredFiles</code></td></tr>
 </tbody></table></div>
 <hr>
-<h2 id="7-验收清单装完请逐条确认">7. 验收清单（装完请逐条确认）</h2>
+<h2 id="7-装完逐条确认">7. 装完逐条确认</h2>
 <ul class="checklist">
 <li><span class="box" aria-hidden="true"></span>五个工具都在</li>
 <li><span class="box" aria-hidden="true"></span><code>file-recall</code> 与 <code>file-tidy</code> 两个 skill 都在</li>
