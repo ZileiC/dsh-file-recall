@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>给 Windows 装一个本地文件检索助手 · 七步</title>
+<link rel="stylesheet" href="guide.css">
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div>
+      <p class="kicker">Windows 安装指引 · 七步 · 约 10 分钟</p>
+      <h1>让本地的文件能被随口问出来</h1>
+      <p class="lede">装完之后，你可以问「去年那份课程笔记放哪了」，它会给出文件路径、页码，以及那一页的原文。
+        七个步骤，每步一个动作。</p>
+      <p class="back"><a href="/">全部文档</a></p>
+    </div>
+    <figure class="portrait">
+      <img src="img/hero-shot.png" alt="DeepSeek Harness 官网下载页，按钮上写着下载 Windows 版">
+      <figcaption>官网下载页。Windows 版就是按钮表面上写的那个，直接点。</figcaption>
+    </figure>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="tl" aria-label="步骤索引">
+    <p class="tl-head">进度</p>
+    <ol>
+      <li data-step="s1"><span class="dot">1</span><a href="#s1">下载</a></li>
+      <li data-step="s2"><span class="dot">2</span><a href="#s2">运行安装程序</a></li>
+      <li data-step="s3"><span class="dot">3</span><a href="#s3">登录</a></li>
+      <li data-step="s4"><span class="dot">4</span><a href="#s4">装找文件的功能</a></li>
+      <li data-step="s5"><span class="dot">5</span><a href="#s5">建索引</a></li>
+      <li data-step="s6"><span class="dot">6</span><a href="#s6">等它跑完</a></li>
+      <li data-step="s7"><span class="dot">7</span><a href="#s7">开始用</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <div class="who">
+      <p>写给谁</p>
+      <p>这份指引面向会用 Windows、但没接触过命令行的人。全程点按、复制粘贴，不需要打开命令提示符。</p>
+      <p>整个流程装两样东西：DeepSeek Harness 和一个本地文件检索插件。
+        索引和检索都在本机完成，文件不上传。</p>
+      <p>中途出错先往下翻，遇到卡住的地方，把屏幕截图发给出指引给你的人。</p>
+    </div>
+
+    <section class="step" id="s1">
+      <div class="step-head"><span class="step-n">01</span><h2>下载</h2></div>
+      <p class="do">打开 <a href="https://www.deepseek.com/harness/" target="_blank" rel="noopener">www.deepseek.com/harness/</a></p>
+      <p class="do">页面上有一个写着<b>「下载 Windows 版」</b>的按钮，<b>直接点它</b>。</p>
+      <p>点完浏览器开始下载，下载栏里会出现一个 .exe 文件。下载完先不要急着双击，先看第 2 步。</p>
+      <figure>
+        <div class="plate is-crop"><img src="img/step-01-menu.png" alt="官网下载按钮，按钮上写着下载 Windows 版"></div>
+        <figcaption>认准按钮上的「Windows」字样。右边的小箭头是给选别的系统用的，这次不用点。</figcaption>
+      </figure>
+      <div class="note">
+        <p><strong>别下错：</strong>认准文件名里的 <code>win</code> 或者 <code>Windows</code> 字样，
+          正常情况是一个 .exe。</p>
+        <p>如果下载下来不是 .exe，说明点错了，回到页面重新下载 Windows 版。</p>
+      </div>
+    </section>
+
+    <section class="step" id="s2">
+      <div class="step-head"><span class="step-n">02</span><h2>运行安装程序</h2></div>
+      <p class="do">在下载栏里点那个 .exe，或者去「下载」文件夹双击它。</p>
+      <p>屏幕上可能会跳出一个蓝色的窗口，写着<b>「Windows 已保护你的电脑」</b>。</p>
+      <p>这是 Windows 对不常见的小众软件的例行提示，不代表软件有问题。点窗口里的
+        <b>更多信息</b>，下方会多出一行 <b>仍要运行</b>，点它。</p>
+      <figure>
+        <div class="plate">
+          <svg viewBox="0 0 320 130" role="img" aria-label="示意图：蓝色提示窗口，点更多信息后出现仍要运行">
+            <rect class="ln" x="24" y="22" width="130" height="76" rx="6"/>
+            <path class="ln" d="M38 40h80M38 54h96M38 66h70"/>
+            <text class="tx" x="89" y="112" text-anchor="middle">蓝色提示窗口</text>
+            <path class="ac" d="M162 58h30" stroke-dasharray="5 5"/>
+            <path class="ac" d="M188 52l8 6-8 6z" fill="var(--accent)" stroke="none"/>
+            <rect class="ln" x="212" y="26" width="86" height="68" rx="6"/>
+            <path class="ln" d="M224 42h56M224 58h40"/>
+            <rect x="218" y="66" width="74" height="22" rx="4" fill="var(--accent)"/>
+            <text x="255" y="81" text-anchor="middle" font-size="12" fill="#ffffff"
+                  font-family="ui-monospace, Menlo, monospace">仍要运行</text>
+            <text class="tx" x="255" y="112" text-anchor="middle">点这个</text>
+          </svg>
+        </div>
+        <figcaption>先点「更多信息」，按钮才会出来，然后点「仍要运行」。</figcaption>
+      </figure>
+      <p>点完之后会进入安装向导，一路点<b>下一步</b>和<b>安装</b>就行。装完点<b>完成</b>。</p>
+      <div class="note">
+        <p><strong>如果提示需要管理员权限</strong>，选「是」。这是把程序装进系统，属于正常流程。</p>
+        <p>如果找不到「仍要运行」，把整个窗口截图留档，别硬点。</p>
+      </div>
+    </section>
+
+    <section class="step" id="s3">
+      <div class="step-head"><span class="step-n">03</span><h2>打开并登录</h2></div>
+      <p class="do">在桌面或开始菜单里找到它，双击打开。登录页提供<b>微信扫码</b>，用手机扫一下即可。</p>
+      <figure>
+        <div class="plate">
+          <svg viewBox="0 0 320 130" role="img" aria-label="示意图：手机微信扫屏幕上的二维码">
+            <rect class="ln" x="34" y="26" width="72" height="72" rx="8"/>
+            <path class="ln" d="M46 38h12v12H46zM80 38h12v12H80zM46 72h12v12H46z"/>
+            <path class="ac" d="M80 72h6v6h6v6h-12z"/>
+            <rect class="ln" x="196" y="34" width="34" height="60" rx="6"/>
+            <path class="ln" d="M208 88h10M196 50h34"/>
+            <path class="ac" d="M150 64h34"/>
+            <path class="ac" d="M180 58l8 6-8 6z" fill="var(--accent)" stroke="none"/>
+            <text class="tx" x="70" y="112" text-anchor="middle">屏幕上的二维码</text>
+            <text class="tx" x="213" y="112" text-anchor="middle">你的手机</text>
+            <text class="txa" x="163" y="30" text-anchor="middle">扫一下</text>
+          </svg>
+        </div>
+        <figcaption>用手机微信「扫一扫」对准屏幕上的方码。</figcaption>
+      </figure>
+    </section>
+
+    <section class="step" id="s4">
+      <div class="step-head"><span class="step-n">04</span><h2>安装检索插件</h2></div>
+      <p class="do">复制下面这段，粘贴到对话框里发送。安装由 agent 完成，不需要手动操作。</p>
+      <div class="snippet">
+        <pre class="copy" tabindex="0">帮我装一个插件，从这个地址装：
+https://github.com/ZileiC/dsh-file-recall
+
+装好以后告诉我：装在哪、有没有报错。</pre>
+        <button class="copy-btn" type="button" data-copy>复制</button>
+      </div>
+      <p>中途询问是否允许访问文件时，选<strong>允许</strong>。</p>
+      <div class="note">
+        <p><strong>如果它报找不到 node、npm 或 git：</strong>这台机器缺构建工具，不是安装出错。</p>
+        <p>换下面这段，让它改装自带依赖的离线包。首次安装会请求网络访问，之后走本地。</p>
+      </div>
+      <div class="snippet">
+        <pre class="copy" tabindex="0">这台电脑没装 node 和 npm。请用离线包装：
+
+https://github.com/ZileiC/dsh-file-recall/releases/latest
+下载 zip，解压得到 dsh-file-recall 文件夹，从这个文件夹装，不要联网装依赖</pre>
+        <button class="copy-btn" type="button" data-copy>复制</button>
+      </div>
+      <p>两种都失败，把对话截图留档即可，不必反复重试。</p>
+      <figure>
+        <div class="plate">
+          <svg viewBox="0 0 320 130" role="img" aria-label="示意图：把一段话粘进对话框再发送">
+            <rect class="ln" x="22" y="30" width="84" height="58" rx="6"/>
+            <path class="ln" d="M34 44h60M34 56h60M34 68h40"/>
+            <text class="tx" x="64" y="102" text-anchor="middle">浏览器里那段话</text>
+            <path class="ac" d="M118 58h34" stroke-dasharray="5 5"/>
+            <path class="ac" d="M152 52l8 6-8 6z" fill="var(--accent)" stroke="none"/>
+            <rect class="ln" x="176" y="34" width="122" height="50" rx="10"/>
+            <path class="ln" d="M188 50h58M188 64h34"/>
+            <path class="ac" d="M252 76l14-6v12z" fill="var(--accent)" stroke="none"/>
+            <text class="tx" x="237" y="102" text-anchor="middle">粘贴，按回车发送</text>
+          </svg>
+        </div>
+        <figcaption>复制那段话，粘进输入框，回车发送。</figcaption>
+      </figure>
+    </section>
+
+    <section class="step" id="s5">
+      <div class="step-head"><span class="step-n">05</span><h2>建立索引</h2></div>
+      <p class="do">在对话框里说：<b>帮我把资料建成索引。</b></p>
+      <p>它会扫描指定的文件夹并记录内容。文件多时需要等待，<strong>期间不要关闭窗口</strong>。</p>
+      <p>它若问资料在哪个文件夹，而你也不确定位置，回它：</p>
+      <div class="snippet">
+        <pre class="copy" tabindex="0">我不知道在哪个文件夹，你帮我找找</pre>
+        <button class="copy-btn" type="button" data-copy>复制</button>
+      </div>
+      <figure>
+        <div class="plate">
+          <svg viewBox="0 0 320 130" role="img" aria-label="示意图：逐个打开文件读取内容">
+            <path class="ln" d="M36 34h40l8 8v56a6 6 0 0 1-6 6H42a6 6 0 0 1-6-6V40a6 6 0 0 1 6-6z"/>
+            <path class="ln" d="M76 34v8h8"/>
+            <path class="ln" d="M50 56h28M50 68h28M50 80h18"/>
+            <circle class="ac" cx="128" cy="62" r="16"/>
+            <path class="ac" d="M140 74l12 12"/>
+            <path class="ln" d="M170 44h44M170 60h44M170 76h30"/>
+            <rect class="ln" x="222" y="36" width="38" height="52" rx="4"/>
+            <path class="ln" d="M230 52h22M230 64h22M230 76h14"/>
+            <path class="ln" d="M272 36h20v52h-20" stroke-dasharray="3 4"/>
+            <text class="tx" x="60" y="114" text-anchor="middle">你的文件</text>
+            <text class="txa" x="128" y="114" text-anchor="middle">逐个读一遍</text>
+            <text class="tx" x="252" y="114" text-anchor="middle">记住内容</text>
+          </svg>
+        </div>
+        <figcaption>每个文件都会被打开、读取、记录。文件越多，耗时越长。</figcaption>
+      </figure>
+    </section>
+
+    <section class="step" id="s6">
+      <div class="step-head"><span class="step-n">06</span><h2>等待完成</h2></div>
+      <p class="do">结束时它会报出收录的文件数量。看到这条提示就算建好了。</p>
+      <p>首次建立最慢，之后每次查询是秒级。</p>
+      <figure>
+        <div class="plate">
+          <svg viewBox="0 0 320 130" role="img" aria-label="示意图：进度走完，出现完成提示">
+            <rect class="ln" x="40" y="52" width="200" height="14" rx="7"/>
+            <rect class="ac" x="40" y="52" width="152" height="14" rx="7" fill="var(--accent)" stroke="none"/>
+            <path class="ac" d="M258 46l8 8 14-16"/>
+            <text class="tx" x="140" y="44" text-anchor="middle">第一次可能比较久</text>
+            <text class="tx" x="140" y="94" text-anchor="middle">正在处理，走完就完成</text>
+            <text class="txa" x="266" y="94" text-anchor="middle">好了</text>
+          </svg>
+        </div>
+        <figcaption>完成时会报出收录的文件数。看到这条提示之前不要关闭窗口。</figcaption>
+      </figure>
+    </section>
+
+    <section class="step" id="s7">
+      <div class="step-head"><span class="step-n">07</span><h2>开始检索</h2></div>
+      <p class="do">用日常说法描述你记得的片段即可，不需要记文件名：</p>
+      <div class="snippet">
+        <pre class="copy" tabindex="0">帮我找一下去年那份课程笔记
+那个讲矩阵的课件在哪
+上次那份合同，带签字的那版</pre>
+        <button class="copy-btn" type="button" data-copy>复制</button>
+      </div>
+      <p>结果会给出文件路径、页码和对应原文，方便核对。</p>
+      <p>如果结果不对，直接说「不是这个」。它会记下这次纠正，同类问题的后续检索会更准。</p>
+      <figure>
+        <div class="plate">
+          <svg viewBox="0 0 320 130" role="img" aria-label="示意图：问一句，回你文件、页码和原文">
+            <rect class="ln" x="26" y="30" width="112" height="44" rx="10"/>
+            <path class="ln" d="M42 46h74M42 58h48"/>
+            <text class="tx" x="82" y="92" text-anchor="middle">你随口问一句</text>
+            <path class="ac" d="M150 52h22"/>
+            <path class="ac" d="M168 46l8 6-8 6z" fill="var(--accent)" stroke="none"/>
+            <rect class="ln" x="190" y="24" width="104" height="70" rx="8"/>
+            <path class="ln" d="M202 40h52M202 52h52M202 64h34"/>
+            <rect x="192" y="66" width="62" height="20" rx="3" fill="var(--accent)"/>
+            <text x="223" y="80" text-anchor="middle" font-size="12" fill="#ffffff"
+                  font-family="ui-monospace, Menlo, monospace">第 3 页</text>
+            <text class="tx" x="242" y="112" text-anchor="middle">文件 + 页码 + 原文</text>
+          </svg>
+        </div>
+        <figcaption>一句提问，返回文件位置、页码和原文片段。</figcaption>
+      </figure>
+    </section>
+
+    <div class="end">
+      <p><strong>出错时：</strong>截图保留现场，连同哪一步出的问题一并记录。不需要排查英文报错，也不需要重装。</p>
+      <p>索引与检索全部在本机进行，文件不会上传到服务器。</p>
+      <p class="fine">除第 1 步的官网截图外，其余配图是按动作画的示意图，不是真实界面截图。</p>
+    </div>
+  </main>
+</div>
+
+<script src="guide.js"></script>
+</body>
+</html>

@@ -20,6 +20,8 @@ export const ROOT_FILES = ['index.html', 'icon.svg']
 export const DOCS_FILES = [
   'install-universal.html',
   'install-universal-standalone.html',
+  'install-windows.html',
+  'install-windows-standalone.html',
   'INSTALL-FOR-AGENTS.html',
   'guide.css',
   'guide.js',

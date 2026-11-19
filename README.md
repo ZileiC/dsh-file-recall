@@ -10,7 +10,7 @@ DeepSeek Harness 插件：在本地资料库中按模糊描述定位**文件与�
 [![](https://badgen.net/badge/native%20deps/0/green)](https://github.com/ZileiC/dsh-file-recall#readme)
 [![](https://badgen.net/github/license/ZileiC/dsh-file-recall?color=green)](https://github.com/ZileiC/dsh-file-recall/blob/main/LICENSE)
 [![](https://badgen.net/github/issues/ZileiC/dsh-file-recall)](https://github.com/ZileiC/dsh-file-recall/issues)
-[![](https://badgen.net/github/stars/ZileiC/dsh-file-recall?color=blue)](https://github.com/ZileiC/dsh-file-recall/stargazers)
+[![](https://badgen.net/github/stars/ZileiC/dsh-file-recall?color=blue&v=2)](https://github.com/ZileiC/dsh-file-recall/stargazers)
 [![](https://badgen.net/github/last-commit/ZileiC/dsh-file-recall)](https://github.com/ZileiC/dsh-file-recall/commits/main)
 [![](https://badgen.net/badge/powered_by/dsh/4D6BFE)](https://github.com/deepseek-ai/deepseek-harness)
 <!-- badges:end -->
