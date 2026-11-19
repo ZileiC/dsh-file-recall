@@ -35,7 +35,7 @@ DeepSeek Harness 插件：在本地资料库中按模糊描述定位**文件与�
 
 - **Release 附件下载数**是唯一直接对应「有人拿走了安装包」的指标，累计、不丢。
 - **Clone 数不能当下载量**：它只计未认证拉取，爬虫与镜像占绝大多数。实测认证下载一次 zipball 后该数字不变。
-- **页面访问**只保留 14 天。`node scripts/traffic.mjs` 每天把数字并进 `traffic.jsonl`，CI 里也挂了每日快照。
+- **页面访问**只保留 14 天。`node scripts/traffic.mjs` 把数字并进 `traffic.jsonl`。没有做自动化：Actions 的默认令牌读不到 traffic 接口（实测 403），只能手动跑。
 - 让 agent 安装的路径（`plugin_manager install_bundle`）不经过任何服务器，看不见，**这是统计的盲区**。
 
 ## 它能做什么
