@@ -4,8 +4,7 @@
  *   node scripts/eval.mjs
  *
  * The set is synthetic (120 slides, 60 queries with a unique remembered
- * phrase, vague year and filler words). It is a baseline, not the father's
- * real corpus.
+ * phrase, vague year and filler words). It is a baseline, not a real corpus.
  */
 
 import assert from 'node:assert/strict'

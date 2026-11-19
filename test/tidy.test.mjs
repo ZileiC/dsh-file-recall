@@ -195,12 +195,12 @@ test('an empty archive produces an empty plan instead of noise', () => {
 test('the structure proposal keeps semesters and courses and ignores build trees', () => {
   const { store, done } = makeStore()
   try {
-    addFile(store, 'D:\\vault\\Ⅱ 26 Fall\\1077 Chinese communication\\Notes\\Week 3.md')
-    addFile(store, 'D:\\vault\\Ⅱ 26 Fall\\1077 Chinese communication\\Slides\\lecture.pdf')
-    addFile(store, 'D:\\vault\\Ⅱ 26 Fall\\2102 Matrix Algebra\\Notes\\L05.md')
-    addFile(store, 'D:\\vault\\Ⅰ 25 Fall\\calculus\\midterm\\exam.pdf')
+    addFile(store, 'D:\\vault\\2026-Fall\\1001 Example Course\\Notes\\Week 3.md')
+    addFile(store, 'D:\\vault\\2026-Fall\\1001 Example Course\\Slides\\lecture.pdf')
+    addFile(store, 'D:\\vault\\2026-Fall\\1002 Second Course\\Notes\\L05.md')
+    addFile(store, 'D:\\vault\\2025-Fall\\math-basics\\midterm\\exam.pdf')
     addFile(store, 'D:\\vault\\loose-at-root.md')
-    addFile(store, 'D:\\vault\\Ⅱ 26 Fall\\1077 Chinese communication\\venv\\IMG_1.png')
+    addFile(store, 'D:\\vault\\2026-Fall\\1001 Example Course\\venv\\IMG_1.png')
 
     const planner = createTidyPlanner({ store })
     const structure = planner.structure({ roots: [ROOT] })
@@ -210,15 +210,15 @@ test('the structure proposal keeps semesters and courses and ignores build trees
     assert.equal(structure.totals.ignored, 1)
 
     const labels = structure.branches.map((branch) => branch.label)
-    assert.ok(labels.includes('Ⅱ 26 Fall'))
-    assert.ok(labels.includes('Ⅰ 25 Fall'))
+    assert.ok(labels.includes('2026-Fall'))
+    assert.ok(labels.includes('2025-Fall'))
     assert.ok(labels.includes('根目录散落文件'), 'loose root files are their own branch')
 
-    const semester = structure.branches.find((branch) => branch.label === 'Ⅱ 26 Fall')
+    const semester = structure.branches.find((branch) => branch.label === '2026-Fall')
     assert.equal(semester.count, 3)
     const courseLabels = semester.children.map((child) => child.label)
-    assert.ok(courseLabels.includes('1077 Chinese communication'))
-    assert.ok(courseLabels.includes('2102 Matrix Algebra'))
+    assert.ok(courseLabels.includes('1001 Example Course'))
+    assert.ok(courseLabels.includes('1002 Second Course'))
 
     // The proposal must state its levels and rules, because that is what the
     // user approves — not the picture alone.
@@ -235,15 +235,15 @@ test('the fishbone renders a standalone SVG with the head and every branch', () 
     head: '找到东西',
     subtitle: '5 个文件',
     branches: [
-      { label: 'Ⅱ 26 Fall', count: 3, children: [{ label: '1077 Chinese', count: 2 }, { label: '2102 Matrix', count: 1 }] },
-      { label: 'Ⅰ 25 Fall', count: 1, children: [{ label: 'calculus', count: 1 }] },
+      { label: '2026-Fall', count: 3, children: [{ label: '1001 Example', count: 2 }, { label: '1002 Second', count: 1 }] },
+      { label: '2025-Fall', count: 1, children: [{ label: 'math-basics', count: 1 }] },
     ],
     width: 1000,
   })
   assert.match(svg, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/)
   assert.match(svg, /找到东西/)
-  assert.match(svg, /Ⅱ 26 Fall/)
-  assert.match(svg, /1077 Chinese/)
+  assert.match(svg, /2026-Fall/)
+  assert.match(svg, /1001 Example/)
   assert.match(svg, /<\/svg>$/)
   // No raw ampersands: XML would be invalid.
   assert.doesNotMatch(svg, /&(?!(amp|lt|gt|quot);)/)
@@ -296,16 +296,16 @@ test('an Obsidian vault is move-only until the caller opts in', () => {
 test('the per-file detail names each target and hides the rest with counts', () => {
   const { store, done } = makeStore()
   try {
-    addFile(store, 'D:\\vault\\Ⅱ 26 Fall\\1077 Chinese communication\\Notes\\IMG_1001.jpg')
-    addFile(store, 'D:\\vault\\Ⅱ 26 Fall\\1077 Chinese communication\\Notes\\IMG_1002.jpg')
-    addFile(store, 'D:\\vault\\Ⅱ 26 Fall\\1077 Chinese communication\\Slides\\lecture.pdf')
-    addFile(store, 'D:\\vault\\Ⅱ 26 Fall\\1077 Chinese communication\\Slides\\IMG_1003.png')
+    addFile(store, 'D:\\vault\\2026-Fall\\1001 Example Course\\Notes\\IMG_1001.jpg')
+    addFile(store, 'D:\\vault\\2026-Fall\\1001 Example Course\\Notes\\IMG_1002.jpg')
+    addFile(store, 'D:\\vault\\2026-Fall\\1001 Example Course\\Slides\\lecture.pdf')
+    addFile(store, 'D:\\vault\\2026-Fall\\1001 Example Course\\Slides\\IMG_1003.png')
 
     const planner = createTidyPlanner({ store })
     const detail = planner.detail({ roots: [ROOT], ticksPerKind: 1 })
 
     assert.equal(detail.totals.files, 4)
-    const view = detail.views.find((entry) => entry.top === 'Ⅱ 26 Fall')
+    const view = detail.views.find((entry) => entry.top === '2026-Fall')
     assert.ok(view, 'the semester is its own view')
     const notes = view.kinds.find((kind) => kind.kind === 'notes')
     assert.equal(notes.count, 2)

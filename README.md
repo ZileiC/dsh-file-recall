@@ -174,7 +174,7 @@ plugin_manager action=install_bundle target=<clone 下来的绝对路径>
 - `file-recall`：何时搜、如何读页、证据纪律与空态处理。
 - `file-tidy`：整理方案的口径与执行纪律（先结构 → 再逐文件 → 用户同意 → 演练 → 执行 → 可 undo）。
 
-**给其他 agent 的安装教程：[`docs/INSTALL-FOR-AGENTS.md`](docs/INSTALL-FOR-AGENTS.md)**，含验收清单与常见故障表。
+**给其他 agent 的安装教程：[`docs/INSTALL-FOR-AGENTS.md`](docs/INSTALL-FOR-AGENTS.md)**，含逐条确认与常见故障表。
 
 整理方案的既定决策，不需要问用户：
 
@@ -198,7 +198,7 @@ node scripts/pack.mjs
 - tesseract.js 的 worker 从包内 `node_modules` 启动，所以必须**整个目录**一起拷贝。
 - 安装后：配置 `roots`（或让 agent 调 `file_recall_index action="configure"`）→ `sync` → 反复 `build` 到 done。
 
-## macOS 验收清单
+## macOS 检查清单
 
 - [ ] 整个 `dist/dsh-file-recall` 目录拷到 Mac，`install_bundle`，确认 5 个工具 + 2 个 skill
 - [ ] `file_recall_index action="configure" roots=["/Users/.../资料"] confirm=true` → sync → build 到 done
@@ -223,7 +223,7 @@ plugin_manager action=remove_bundle target=dsh-file-recall
 - 超过 `ocr.maxPagesPerDoc`（默认 50）的扫描件只处理前 N 页，并在 `file.error` 标注截断。
 - 手写体、印章、低质量扫描不保证识别。
 - `.doc` / `.xls` / `.wps` / `.key` / `.pages` / `.numbers` 等不支持格式会计入 `sync.skippedByExtension`，不静默。
-- macOS Vision 需在目标 Mac 上人工验收；开发机为 Windows，无法本地验证。
+- macOS Vision 需在目标 Mac 上实测；开发机为 Windows，无法本地验证。
 - 分发包约 130MB（pdfjs + tesseract 语言包），可接受但不轻。
 
 ## License

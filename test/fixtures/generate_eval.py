@@ -1,8 +1,7 @@
 """Generate a synthetic 120-slide corpus + 60 ToT-style queries for recall eval.
 
 This is a *synthetic* baseline: unique remembered phrases, vague years and
-filler words. It measures plumbing and page-level ranking, not the father's
-real corpus.
+filler words. It measures plumbing and page-level ranking, not a real corpus.
 """
 
 from __future__ import annotations

@@ -118,7 +118,7 @@ file_recall_evidence { chunkId: <命中里的 chunkId> }
 
 ---
 
-## 5. 整理方案（可选）
+## 5. 整理方案
 
 用户要求整理时，按固定顺序：
 
@@ -160,7 +160,7 @@ file_recall_tidy { action: "undo", confirm: true, dryRun: false }   // 出事就
 - [ ] 面板能打开，图谱有节点，检索时输入框上方出现一次提示条
 - [ ] `tidy` 的 `structure` 能出图，且 `executable: false`（未执行任何改动）
 
-macOS 用户额外确认（需要真机）：
+macOS 用户额外确认：
 
 - [ ] OCR provider 自检返回 `vision` 或 `tesseract`
 - [ ] 扫描版 PDF 的某一页能按需识别出文本

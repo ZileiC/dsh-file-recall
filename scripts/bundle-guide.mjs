@@ -9,9 +9,8 @@
  * delivered (a .html in a chat message, opened on a phone). Data URIs and inline
  * blocks make one file that works anywhere, with no network and no sibling folder.
  *
- * Only the universal guide ships publicly. The personal version written for one
- * specific reader lives outside the repository (see ../private-notes) and is
- * bundled by the same function when someone runs it locally.
+ * Only the universal guide is committed. Pass --source / --out / --docs-dir to
+ * bundle a different page.
  *
  * The build is exposed as a pure function so a test can rebuild in memory and
  * compare against the committed file: editing the source page without re-running

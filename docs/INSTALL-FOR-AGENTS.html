@@ -123,7 +123,7 @@ file_recall_index { action: &quot;build&quot;, maxFiles: 200 }   // 重复调用
 file_recall_evidence { chunkId: &lt;命中里的 chunkId&gt; }</code></pre>
 <p><strong>证据纪律</strong>：页码/幻灯片号只能来自工具返回的 <code>page</code>/<code>block</code>/<code>locator</code>；引文必须从 <code>file_recall_evidence.text</code> 逐字复制。<strong>绝不编造文件、页码或引文</strong>。</p>
 <hr>
-<h2 id="5-整理方案可选">5. 整理方案（可选）</h2>
+<h2 id="5-整理方案">5. 整理方案</h2>
 <p>用户要求整理时，按固定顺序：</p>
 <pre class="code" tabindex="0"><code>file_recall_tidy { action: &quot;structure&quot; }   // 理想结构鱼骨图（SVG 路径在 diagramPath）
 file_recall_tidy { action: &quot;detail&quot; }      // 逐个文件的去向（每个顶层目录一张图）
@@ -157,7 +157,7 @@ file_recall_tidy { action: &quot;undo&quot;, confirm: true, dryRun: false }   //
 <li><span class="box" aria-hidden="true"></span>面板能打开，图谱有节点，检索时输入框上方出现一次提示条</li>
 <li><span class="box" aria-hidden="true"></span><code>tidy</code> 的 <code>structure</code> 能出图，且 <code>executable: false</code>（未执行任何改动）</li>
 </ul>
-<p>macOS 用户额外确认（需要真机）：</p>
+<p>macOS 用户额外确认：</p>
 <ul class="checklist">
 <li><span class="box" aria-hidden="true"></span>OCR provider 自检返回 <code>vision</code> 或 <code>tesseract</code></li>
 <li><span class="box" aria-hidden="true"></span>扫描版 PDF 的某一页能按需识别出文本</li>
