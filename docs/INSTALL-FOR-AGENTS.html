@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>给 Agent 的安装与接入说明 · dsh-file-recall</title>
+<link rel="stylesheet" href="guide.css">
+<style>
+  /* ---- generated from docs/INSTALL-FOR-AGENTS.md ---- */
+  .doc h2 {
+    font-size: 1.28rem; line-height: 1.4; margin: 2.8rem 0 .7rem; font-weight: 600;
+    letter-spacing: -.006em; padding-top: 2.2rem; border-top: 1px solid var(--rule);
+  }
+  .doc h2:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+  .doc h3 { font-size: 1.08rem; margin: 1.9rem 0 .6rem; font-weight: 600; }
+  .doc p { margin: 0 0 1rem; color: var(--ink-2); }
+  .doc p strong { color: var(--ink); }
+  .doc ul { margin: .4rem 0 1.2rem; padding-left: 1.2rem; color: var(--ink-2); }
+  .doc ul li { margin: .3rem 0; }
+  .doc hr { border: 0; border-top: 1px solid var(--rule); margin: 2.4rem 0; }
+  .doc code {
+    font-family: var(--mono); font-size: .9em; background: var(--rule-2);
+    padding: .08em .32em; border-radius: 4px; color: var(--ink);
+  }
+  pre.code {
+    font-family: var(--mono); font-size: 14px; line-height: 1.65; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 10px;
+    padding: 1rem 1.1rem; margin: .9rem 0 1.3rem; overflow-x: auto;
+    white-space: pre; tab-size: 2;
+  }
+  pre.code code { background: none; padding: 0; font-size: inherit; }
+  .checklist .box {
+    position: absolute; left: 0; top: .74rem; width: 13px; height: 13px;
+    border: 1.5px solid var(--rule); border-radius: 3px; background: var(--surface);
+    display: grid; place-items: center; font-size: 10px; line-height: 1;
+    color: var(--accent); font-family: var(--mono);
+  }
+
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner solo">
+    <div>
+      <p class="kicker">给 agent 的安装与接入说明 · 命令行路径</p>
+      <h1>给 Agent 的安装与接入说明</h1>
+      <p class="lede">这份文档写给**另一个 AI agent**：你要在用户的机器上装好 `dsh-file-recall`，让用户能用中文模糊描述找到本地旧资料，并可选地生成整理方案。</p>
+      <p class="back"><a href="/">全部文档</a></p>
+    </div>
+  </div>
+</header>
+
+<div class="shell solo">
+  <main class="doc">
+<h1 id="给-agent-的安装与接入说明">给 Agent 的安装与接入说明</h1>
+<p>这份文档写给<strong>另一个 AI agent</strong>：你要在用户的机器上装好 <code>dsh-file-recall</code>，让用户能用中文模糊描述找到本地旧资料，并可选地生成整理方案。</p>
+<p>不要跳过第 2 步的核对——这个插件装错的典型症状是「工具能用、面板 404」，看起来像插件坏了，其实是宿主还在跑旧模块。</p>
+<hr>
+<h2 id="0-先确认环境">0. 先确认环境</h2>
+<div class="table-wrap"><table><thead><tr><th>需要</th><th>检查方式</th></tr></thead><tbody>
+<tr><td>DeepSeek Harness ≥ 0.2.2-rc.1</td><td>宿主设置里看版本</td></tr>
+<tr><td>Node ≥ 22.19</td><td><code>node -v</code>（需要内置 <code>node:sqlite</code>）</td></tr>
+<tr><td>平台</td><td>macOS / Windows 都可以；macOS 额外有 Vision OCR 通道</td></tr>
+</tbody></table></div>
+<hr>
+<h2 id="1-拿到插件">1. 拿到插件</h2>
+<p>三种方式，按目标机器的情况选。</p>
+<p><strong>A. 从 GitHub（机器上有 npm 时最省事）</strong></p>
+<pre class="code" tabindex="0"><code>git clone https://github.com/ZileiC/dsh-file-recall.git
+cd dsh-file-recall
+npm install --omit=dev --omit=optional</code></pre>
+<p><code>--omit=optional</code> 是必须的：它排除 <code>pdfjs-dist</code> 的可选原生 canvas。插件零 <code>.node</code> 依赖，跨平台可搬。</p>
+<p><strong>B. 离线包（目标机器没有 Node / npm / git，推荐给长辈的机器）</strong></p>
+<p>下载 Release 里的 <code>dsh-file-recall-&lt;版本&gt;.zip</code>，解压得到一个目录：</p>
+<pre class="code" tabindex="0"><code>https://github.com/ZileiC/dsh-file-recall/releases/latest</code></pre>
+<p>这个 zip <strong>已内含 <code>node_modules</code></strong>（生产依赖，0 个平台相关二进制），所以：</p>
+<ul>
+<li>不需要 <code>npm install</code></li>
+<li>不需要网络</li>
+<li>不需要 <code>git</code></li>
+<li>macOS 与 Windows 通用</li>
+</ul>
+<p>解压后直接把目录路径交给 <code>plugin_manager</code> 的 <code>install_bundle</code>。</p>
+<p><strong>C. 自己打一个离线包</strong>（改了源码、要发给别人时）</p>
+<pre class="code" tabindex="0"><code>node scripts/pack.mjs          # 产出 ../dist/dsh-file-recall（含生产依赖）</code></pre>
+<p>打包脚本会报告 <code>nativeBinaries</code>，<strong>必须是 0</strong> 才能跨平台分发。</p>
+<div class="note"><p>给 agent 的判据：先试 A；只要出现 <code>node: command not found</code>、<code>npm: command not found</code>、<code>git: command not found</code> 或依赖安装失败，立刻转 B，别反复重试 A。</p></div>
+<p><strong>注意</strong>：DeepSeek Harness 桌面版自带 Node 运行时（约 v24）与 pnpm，但<strong>不带 npm</strong>。所以&quot;DSH 能跑&quot;不等于&quot;这台机器能 <code>npm install</code>&quot;——这是两回事。</p>
+<hr>
+<h2 id="2-安装到-profile-并核对产物">2. 安装到 profile 并<strong>核对产物</strong></h2>
+<p>推荐用宿主自带的插件安装入口（把 <code>&lt;插件目录绝对路径&gt;</code> 换成上一步的目录）：</p>
+<div class="note"><p>对 agent 说明：在 DSH 里调用 <code>plugin_manager</code>，<code>action: &quot;install_bundle&quot;</code>，<code>target</code> 传插件目录绝对路径。不要手写 profile 的 <code>package.json</code>。</p></div>
+<p>装完必须核对三件事，缺一不可：</p>
+<ul>
+<li><strong>工具已注册</strong>：<code>file_recall_index</code> / <code>file_recall_search</code> / <code>file_recall_evidence</code> / <code>file_recall_feedback</code> / <code>file_recall_tidy</code> 五个都在。</li>
+<li><strong>两个 skill 已注册</strong>：<code>file-recall</code> 与 <code>file-tidy</code>。</li>
+<li><strong>HTTP 路由已注册</strong>：调用 <code>file_recall_index { action: &quot;status&quot; }</code>，返回里必须是</li>
+</ul>
+<p>``<code>json &quot;ui&quot;: { &quot;status&quot;: &quot;registered&quot;, &quot;path&quot;: &quot;/api/file-recall&quot;, &quot;error&quot;: null } </code>``</p>
+<p>如果 <code>ui.status</code> 是 <code>waiting</code> 或 <code>error</code>，说明宿主启动时 HTTP 服务还没就绪——本插件用 <code>ctx.inject(['webServer'])</code> 等待它，正常情况下会自动补上。若仍是 <code>error</code>，<code>ui.error</code> 里就是确切原因。</p>
+<div class="note"><p><strong>不要</strong>用「重启后应该就好了」结案。<code>ui.status</code> 就是这件事的判据。</p></div>
+<hr>
+<h2 id="3-选资料目录并建索引">3. 选资料目录并建索引</h2>
+<p>先问用户资料放在哪（一次只问一个目录）。然后：</p>
+<pre class="code" tabindex="0"><code>file_recall_index { action: &quot;configure&quot;, roots: [&quot;&lt;绝对路径&gt;&quot;], confirm: true }
+file_recall_index { action: &quot;sync&quot; }
+file_recall_index { action: &quot;build&quot;, maxFiles: 200 }   // 重复调用直到 done: true</code></pre>
+<p>要点：</p>
+<ul>
+<li><code>configure</code> 是<strong>替换</strong>扫描范围，不是追加；要多个目录就一次全给。</li>
+<li><code>build</code> 分批，中断可续，返回 <code>done: true</code> 才算完。</li>
+<li>默认是<strong>懒 OCR</strong>（<code>ocr.mode: &quot;lazy&quot;</code>）：建库只抽文本，扫描页登记待处理，几万个文件也能几分钟建完。</li>
+<li>要读某页：<code>file_recall_evidence { path, page }</code> 当场识别。</li>
+<li>要预热：<code>file_recall_index { action: &quot;ocr&quot;, maxFiles: 10 }</code>，重复到 <code>remaining</code> 为 0。</li>
+<li>想要建库时就识别：<code>ocr: { mode: &quot;eager&quot; }</code>（慢，大库不推荐）。</li>
+<li>索引文件在 <code>$DSH_HOME/storages/file-recall/index.db</code>；卸载不自动删除，需要清空用 <code>action: &quot;reset&quot;</code>（会保留学习词表与目录配置）。</li>
+</ul>
+<hr>
+<h2 id="4-第一次真实查询">4. 第一次真实查询</h2>
+<p>直接用用户原话问，不要先改写：</p>
+<pre class="code" tabindex="0"><code>file_recall_search { query: &quot;那个讲带宽优化的跨文化笔记&quot; }
+file_recall_evidence { chunkId: &lt;命中里的 chunkId&gt; }</code></pre>
+<p><strong>证据纪律</strong>：页码/幻灯片号只能来自工具返回的 <code>page</code>/<code>block</code>/<code>locator</code>；引文必须从 <code>file_recall_evidence.text</code> 逐字复制。<strong>绝不编造文件、页码或引文</strong>。</p>
+<hr>
+<h2 id="5-整理方案可选">5. 整理方案（可选）</h2>
+<p>用户要求整理时，按固定顺序：</p>
+<pre class="code" tabindex="0"><code>file_recall_tidy { action: &quot;structure&quot; }   // 理想结构鱼骨图（SVG 路径在 diagramPath）
+file_recall_tidy { action: &quot;detail&quot; }      // 逐个文件的去向（每个顶层目录一张图）
+file_recall_tidy { action: &quot;plan&quot; }        // 逐条清单，落盘到 storage
+file_recall_tidy { action: &quot;apply&quot;, dryRun: true }              // 演练
+file_recall_tidy { action: &quot;apply&quot;, confirm: true, dryRun: false }  // 用户同意后才执行
+file_recall_tidy { action: &quot;undo&quot;, confirm: true, dryRun: false }   // 出事就整批回滚</code></pre>
+<ul>
+<li>默认对 Obsidian vault 只移动、不改名（改名会断 <code>[[双链]]</code>）。</li>
+<li>journal 在 <code>$DSH_HOME/storages/file-recall/tidy-journal.jsonl</code>，可整批撤销。</li>
+<li>方案与图都写在 <code>$DSH_HOME/storages/file-recall/</code> 下，<strong>不会写进用户的资料目录</strong>。</li>
+</ul>
+<hr>
+<h2 id="6-常见故障">6. 常见故障</h2>
+<div class="table-wrap"><table><thead><tr><th>症状</th><th>原因</th><th>处理</th></tr></thead><tbody>
+<tr><td>面板「无法连接插件服务 HTTP 404」</td><td>宿主在跑旧模块，或路由未注册</td><td>先看 <code>status.ui.status</code>；<code>error</code> 会给出原因，<code>waiting</code> 稍等。仍不行就完全退出宿主再启动</td></tr>
+<tr><td>面板「宿主插件版本过旧」</td><td>客户端 bundle 与宿主 <code>apiVersion</code> 不一致</td><td>刷新页面（或重启宿主），让客户端重新加载</td></tr>
+<tr><td><code>file_recall_evidence</code> 报 <code>not lossless JSON</code></td><td>旧版本返回了 <code>undefined</code> 字段</td><td>升级插件；该问题已在新版修复</td></tr>
+<tr><td>搜索 0 命中</td><td>索引为空 / 目录配错 / 全是被跳过的类型</td><td>看 <code>status.files</code>、<code>status.roots</code>、<code>lastSyncSummary.skippedByExtension</code></td></tr>
+<tr><td>扫描件搜不到内容</td><td>懒 OCR 还没识别该页</td><td><code>file_recall_evidence { path, page }</code> 或 <code>action: &quot;ocr&quot;</code></td></tr>
+<tr><td>整理方案里出现 venv/构建目录</td><td>旧版本未排除</td><td>升级插件；新版整目录忽略并计入 <code>ignoredFiles</code></td></tr>
+</tbody></table></div>
+<hr>
+<h2 id="7-验收清单装完请逐条确认">7. 验收清单（装完请逐条确认）</h2>
+<ul class="checklist">
+<li><span class="box" aria-hidden="true"></span>五个工具都在</li>
+<li><span class="box" aria-hidden="true"></span><code>file-recall</code> 与 <code>file-tidy</code> 两个 skill 都在</li>
+<li><span class="box" aria-hidden="true"></span><code>status.ui.status === &quot;registered&quot;</code></li>
+<li><span class="box" aria-hidden="true"></span><code>sync</code> + <code>build</code> 后 <code>status.files &gt; 0</code>，<code>status.errors</code> 为 0</li>
+<li><span class="box" aria-hidden="true"></span>一条真实查询能返回命中，并用 <code>evidence</code> 读回原文</li>
+<li><span class="box" aria-hidden="true"></span>面板能打开，图谱有节点，检索时输入框上方出现一次提示条</li>
+<li><span class="box" aria-hidden="true"></span><code>tidy</code> 的 <code>structure</code> 能出图，且 <code>executable: false</code>（未执行任何改动）</li>
+</ul>
+<p>macOS 用户额外确认（需要真机）：</p>
+<ul class="checklist">
+<li><span class="box" aria-hidden="true"></span>OCR provider 自检返回 <code>vision</code> 或 <code>tesseract</code></li>
+<li><span class="box" aria-hidden="true"></span>扫描版 PDF 的某一页能按需识别出文本</li>
+<li><span class="box" aria-hidden="true"></span>拒绝「文件与文件夹」权限时，错误信息里有可执行的引导</li>
+</ul>
+  </main>
+</div>
+
+<script src="guide.js"></script>
+</body>
+</html>

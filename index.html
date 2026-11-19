@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dsh-file-recall · 本地文件检索插件</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<!-- Point Pages at the full guide straight away; the redirect below is the fallback. -->
+<meta http-equiv="refresh" content="0; url=./docs/install-universal.html">
+<style>
+  :root {
+    --paper: #f7f6f3;
+    --ink: #1f2430;
+    --ink-2: #5a6172;
+    --rule: #dedbd4;
+    --accent: #4d6bfe;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper: #16181d; --ink: #e8e9ec; --ink-2: #a4a9b6; --rule: #2e323b; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 32px 20px;
+    background: var(--paper);
+    color: var(--ink);
+    font: 15px/1.7 -apple-system, BlinkMacSystemFont, "PingFang SC", "Segoe UI", sans-serif;
+  }
+  main { width: 100%; max-width: 460px; }
+  .brand { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; }
+  .brand img { width: 28px; height: 28px; }
+  .brand span { font-size: 13px; letter-spacing: .04em; color: var(--ink-2); }
+  h1 { margin: 0 0 8px; font-size: 22px; line-height: 1.35; }
+  p { margin: 0 0 10px; color: var(--ink-2); }
+  ul { margin: 18px 0 0; padding: 0; list-style: none; border-top: 1px solid var(--rule); }
+  li { border-bottom: 1px solid var(--rule); }
+  a {
+    display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+    padding: 12px 2px; color: var(--ink); text-decoration: none;
+  }
+  a:hover .go, a:focus-visible .go { color: var(--accent); }
+  a strong { font-weight: 500; }
+  .go { color: var(--ink-2); font-size: 13px; white-space: nowrap; }
+  .note { margin-top: 26px; font-size: 12px; color: var(--ink-2); }
+  @media (prefers-reduced-motion: no-preference) {
+    main { animation: rise .32s ease-out both; }
+    @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">
+    <img src="icon.svg" alt="">
+    <span>DeepSeek Harness 插件</span>
+  </div>
+
+  <h1>dsh-file-recall</h1>
+  <p>在本机资料里按模糊描述找到文件和页，并给出可核验的原文片段。</p>
+
+  <ul>
+    <li><a href="./docs/install-universal.html"><strong>安装指南</strong><span class="go">七步，图文</span></a></li>
+    <li><a href="./docs/install-universal-standalone.html"><strong>单文件版指南</strong><span class="go">离线可看</span></a></li>
+    <li><a href="./docs/INSTALL-FOR-AGENTS.html"><strong>给 agent 的安装教程</strong><span class="go">命令行路径</span></a></li>
+    <li><a href="https://github.com/ZileiC/dsh-file-recall/releases/latest"><strong>下载离线安装包</strong><span class="go">GitHub Release</span></a></li>
+  </ul>
+
+  <p class="note">本页只是入口，内容全在上面的链接里。</p>
+</main>
+
+<script>
+  // Redirect is handled by the meta refresh at the top; this only covers
+  // browsers that block meta refresh, and keeps the hash if someone linked to one.
+  (function () {
+    var target = './docs/install-universal.html' + location.hash;
+    setTimeout(function () {
+      if (location.pathname.indexOf('/docs/') === -1) location.replace(target);
+    }, 60);
+  })();
+</script>
+</body>
+</html>

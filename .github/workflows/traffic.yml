@@ -1,0 +1,43 @@
+name: traffic
+
+# GitHub keeps views/clones for 14 days only. Record them daily so the history
+# survives. Release download counts are cumulative and need no job.
+
+on:
+  schedule:
+    - cron: '17 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: traffic
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Record today's numbers
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/traffic.mjs
+
+      - name: Commit when something changed
+        run: |
+          if [ -z "$(git status --porcelain .github/stats)" ]; then
+            echo "no change"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/stats
+          git commit -m "chore(stats): traffic snapshot"
+          git push

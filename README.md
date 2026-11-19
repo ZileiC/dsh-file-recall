@@ -2,7 +2,41 @@
 
 DeepSeek Harness 插件：在本地资料库中按模糊描述定位**文件与页/幻灯片**，并给出可核验的证据片段。
 
-[![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)
+<!-- badges:start -->
+[![](https://badgen.net/github/assets-dl/ZileiC/dsh-file-recall?label=downloads&color=blue)](https://github.com/ZileiC/dsh-file-recall/releases/latest)
+[![](https://badgen.net/github/release/ZileiC/dsh-file-recall?label=release&color=blue)](https://github.com/ZileiC/dsh-file-recall/releases)
+[![](https://badgen.net/badge/platform/macOS%20%7C%20Windows/blue)](https://github.com/ZileiC/dsh-file-recall#readme)
+[![](https://badgen.net/badge/node/%3E%3D22.19/blue)](https://github.com/ZileiC/dsh-file-recall#readme)
+[![](https://badgen.net/badge/native%20deps/0/green)](https://github.com/ZileiC/dsh-file-recall#readme)
+[![](https://badgen.net/github/license/ZileiC/dsh-file-recall?color=green)](https://github.com/ZileiC/dsh-file-recall/blob/main/LICENSE)
+[![](https://badgen.net/github/issues/ZileiC/dsh-file-recall)](https://github.com/ZileiC/dsh-file-recall/issues)
+[![](https://badgen.net/github/stars/ZileiC/dsh-file-recall?color=blue)](https://github.com/ZileiC/dsh-file-recall/stargazers)
+[![](https://badgen.net/github/last-commit/ZileiC/dsh-file-recall)](https://github.com/ZileiC/dsh-file-recall/commits/main)
+[![](https://badgen.net/badge/powered_by/dsh/4D6BFE)](https://github.com/deepseek-ai/deepseek-harness)
+<!-- badges:end -->
+
+## 安装
+
+三种方式，按目标机器的情况选一种：
+
+| 你的情况 | 走这条路 |
+|---|---|
+| 想让 agent 帮你装 | 把 [给 agent 的安装说明](https://zileic.github.io/dsh-file-recall/docs/INSTALL-FOR-AGENTS.html) 的地址交给它 |
+| 自己动手，没碰过命令行 | [七步图文安装指南](https://zileic.github.io/dsh-file-recall/docs/install-universal.html)（另有可离线打开的单文件版） |
+| 机器上没有 Node / npm / git | 下载 [离线安装包](https://github.com/ZileiC/dsh-file-recall/releases/latest)（zip 已内含依赖，解压即用） |
+
+文档站点：<https://zileic.github.io/dsh-file-recall/>
+
+> 离线包约 44 MB，解压后约 130 MB，**0 个平台相关二进制**，macOS 与 Windows 通用。
+
+## 怎么算「装了多少」
+
+[`.github/stats/`](.github/stats/) 存 GitHub 自己给的数字，口径写在里面：
+
+- **Release 附件下载数**是唯一直接对应「有人拿走了安装包」的指标，累计、不丢。
+- **Clone 数不能当下载量**：它只计未认证拉取，爬虫与镜像占绝大多数。实测认证下载一次 zipball 后该数字不变。
+- **页面访问**只保留 14 天。`node scripts/traffic.mjs` 每天把数字并进 `traffic.jsonl`，CI 里也挂了每日快照。
+- 让 agent 安装的路径（`plugin_manager install_bundle`）不经过任何服务器，看不见，**这是统计的盲区**。
 
 ## 它能做什么
 
@@ -16,7 +50,7 @@ DeepSeek Harness 插件：在本地资料库中按模糊描述定位**文件与�
 
 ## 状态
 
-M1 功能完成：抽取 / OCR（含扫描 PDF 页面栅格化）/ 分批建库 / 检索证据 / 反馈学习 / runtime skill 均已实现；单测 109/109、E2E、60 条 ToT 合成评测与 1k chunk 性能通过；自包含 Mac 分发包已生成。**待办**：Mac 真机验收（Vision/TCC/离线）。
+M1 功能完成：抽取 / OCR（含扫描 PDF 页面栅格化）/ 分批建库 / 检索证据 / 反馈学习 / runtime skill 均已实现；单测 198/198、E2E、60 条 ToT 合成评测与 1k chunk 性能通过；自包含 Mac 分发包已生成。**Mac 真机验收已通过**（见 [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md)）。
 
 ## 设计要点（已定）
 
@@ -33,7 +67,7 @@ M1 功能完成：抽取 / OCR（含扫描 PDF 页面栅格化）/ 分批建库 
 
 ```json
 {
-  "roots": ["/Users/<你爸的用户名>/Documents/资料"],
+  "roots": ["/Users/<用户名>/Documents/资料"],
   "excludeGlobs": ["**/node_modules/**"],
   "topK": 8,
   "ocr": { "mode": "lazy", "provider": "auto", "langs": ["chi_sim"] },
