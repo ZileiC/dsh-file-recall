@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>给 Mac 装一个本地文件检索助手 · 七步</title>
+<style>
+  /* =====================================================================
+     方向（写于动手之前）
+     产品 · 一页给父亲的 Mac 安装说明，七个动作
+     性格 · 平静、精确、一点自嘲的暖
+     世界 · 同事坐在你旁边递来的一张工作台便签：官网的深蓝 + 纸面 + 手写线稿
+     亮点 · 第 1 步的真实官网截图作 hero 的"产品肖像"（全页唯一一块屏幕）；
+            六个动作示意图，线笔手绘感
+     签名 · 左侧竖向时间线：编号圆点 + 连线，滚到第几步就填到第几步
+     ===================================================================== */
+  :root {
+    --navy-900: #08122c;
+    --navy-700: #0f2557;
+    --navy-500: #1b4aa8;
+    --paper: #f7f7f6;
+    --surface: #ffffff;
+    --ink: #14161a;
+    --ink-2: #454a53;
+    --muted: #6b7076;
+    --rule: #e2e3e5;
+    --rule-2: #ecedee;
+    --accent: #1450bd;
+    --accent-soft: #eef3fc;
+    --amber-bg: #fdf4e6;
+    --amber-ink: #7a4a12;
+    --on-navy: #ffffff;
+    --on-navy-2: #c3d0ea;
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC",
+            "Helvetica Neue", "Hiragino Sans GB", sans-serif;
+    --mono: "SF Mono", ui-monospace, Menlo, "Cascadia Mono", monospace;
+    --rail: 13.5rem;
+    --maxw: 74rem;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: var(--font); font-size: 17px; line-height: 1.72;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-underline-offset: 3px; }
+  a:focus-visible, button:focus-visible, pre:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px;
+  }
+
+  /* ---------------- hero：满幅深蓝 + 产品肖像 ---------------- */
+  .hero {
+    position: relative; overflow: hidden;
+    /* The bright end of the gradient lives under the portrait on the right; the
+       copy sits on the dark end, so white text never crosses a light wash. */
+    background: linear-gradient(100deg, #060d1f 0%, #0a1735 42%, #122a63 72%, #1b4aa8 100%);
+    color: var(--on-navy);
+  }
+  .hero::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(58% 96% at 96% 6%, rgba(96,156,255,.30), transparent 62%);
+  }
+  .hero-inner {
+    position: relative; z-index: 1;
+    max-width: var(--maxw); margin: 0 auto;
+    padding: 4rem 2rem 4rem;
+    display: grid; grid-template-columns: minmax(0, 1.02fr) minmax(0, .98fr);
+    gap: 3.4rem; align-items: center;
+  }
+  .kicker {
+    font-family: var(--mono); font-size: 12px; color: var(--on-navy-2);
+    margin: 0 0 1.1rem;
+  }
+  .hero h1 {
+    font-size: clamp(2rem, 3.6vw, 2.9rem); line-height: 1.2;
+    letter-spacing: -.018em; margin: 0 0 1.1rem; font-weight: 600;
+  }
+  .hero .lede { margin: 0; font-size: 1.04rem; color: var(--on-navy-2); max-width: 30rem; }
+
+  .portrait { margin: 0; }
+  .portrait img {
+    display: block; width: 100%; border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.16);
+    box-shadow: 0 24px 60px rgba(2,8,24,.55);
+  }
+  .portrait figcaption {
+    margin-top: .7rem; font-family: var(--mono); font-size: 12px;
+    color: var(--on-navy-2);
+  }
+
+  /* ---------------- 主体：时间线 + 内容 ---------------- */
+  .shell {
+    max-width: var(--maxw); margin: 0 auto;
+    padding: 3.6rem 2rem 7rem;
+    display: grid; grid-template-columns: var(--rail) minmax(0, 1fr);
+    gap: 4rem; align-items: start;
+  }
+
+  /* 签名：竖向时间线。滚过的步骤，圆点与连线变深蓝。 */
+  .tl { position: sticky; top: 2.2rem; }
+  .tl-head {
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    margin: 0 0 1.2rem;
+  }
+  .tl ol { list-style: none; margin: 0; padding: 0; }
+  .tl li { position: relative; padding: 0 0 1.55rem 2.55rem; }
+  .tl li:last-child { padding-bottom: 0; }
+  .tl li::before {
+    content: ''; position: absolute; left: 10px; top: 1.5rem; bottom: .1rem;
+    width: 1px; background: var(--rule); transition: background-color 180ms linear;
+  }
+  .tl li:last-child::before { display: none; }
+  .tl .dot {
+    position: absolute; left: 0; top: .16rem; width: 21px; height: 21px;
+    border-radius: 50%; border: 1px solid var(--rule); background: var(--surface);
+    display: grid; place-items: center;
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    /* No transition on the dot itself: mid-transition the numeral was white on a
+       still-white disc, so the number vanished for a beat. Only the connector
+       line animates, and that reads as progress. */
+  }
+  .tl a {
+    display: block; color: var(--muted); text-decoration: none; font-size: 14.5px;
+    line-height: 1.45; padding-top: .1rem;
+    transition: color 150ms linear;
+  }
+  .tl a:hover { color: var(--ink-2); }
+  .tl a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+  .tl li.done::before { background: var(--accent); }
+  .tl li.done .dot { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .tl li.now a { color: var(--ink); font-weight: 600; }
+
+  main { min-width: 0; }
+
+  /* 自我介绍 */
+  .who {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 12px;
+    padding: 1.3rem 1.4rem; margin: 0 0 3.4rem;
+  }
+  .who p { margin: 0 0 .75rem; font-size: 15.5px; color: var(--ink-2); }
+  .who p:last-child { margin: 0; }
+  .who p:first-child { color: var(--ink); font-weight: 600; font-size: 15px; margin-bottom: .6rem; }
+
+  .step { padding-top: 2.8rem; margin-top: 2.8rem; border-top: 1px solid var(--rule); scroll-margin-top: 1.6rem; }
+  .step:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }
+  .step-head { display: flex; align-items: baseline; gap: .7rem; margin-bottom: .7rem; }
+  .step-n {
+    font-family: var(--mono); font-size: 12.5px; color: var(--accent);
+    border: 1px solid var(--rule); border-radius: 5px; padding: .1rem .4rem;
+    line-height: 1.5;
+  }
+  .step h2 { font-size: 1.28rem; line-height: 1.4; margin: 0; font-weight: 600; letter-spacing: -.006em; }
+  .step p { margin: 0 0 1rem; }
+  .do { font-size: 1.03rem; }
+  .do b { font-weight: 600; color: var(--accent); }
+
+  /* 图：照片 / 线稿，同一种容器 */
+  figure { margin: 1.5rem 0 1.7rem; }
+  .plate {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 12px;
+    padding: 1rem; display: grid; place-items: center;
+  }
+  .plate img { display: block; width: 100%; border-radius: 8px; }
+  /* A cropped screen detail should not fill the column: it is an aside, not the page. */
+  .plate.is-crop { max-width: 27rem; }
+  .plate svg { display: block; width: 100%; max-width: 23rem; height: auto; }
+  figcaption { font-size: 13.5px; color: var(--muted); margin-top: .6rem; }
+
+  .ln { stroke: var(--muted); stroke-width: 1.6; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .ac { stroke: var(--accent); stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .tx { font-family: var(--mono); font-size: 12px; fill: var(--muted); }
+  .txa { font-family: var(--mono); font-size: 12px; fill: var(--accent); }
+
+  /* 可复制块 */
+  .snippet { position: relative; margin: .9rem 0 1.3rem; }
+  pre.copy {
+    font-family: var(--mono); font-size: 14px; line-height: 1.65;
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 10px;
+    padding: 1rem 4.6rem 1rem 1.1rem; margin: 0; color: var(--ink);
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .copy-btn {
+    position: absolute; top: .6rem; right: .6rem;
+    font-family: var(--mono); font-size: 12px;
+    background: var(--paper); color: var(--ink-2);
+    border: 1px solid var(--rule); border-radius: 7px;
+    padding: .3rem .55rem; min-height: 30px; cursor: pointer;
+    transition: color 150ms linear, border-color 150ms linear, background-color 150ms linear;
+  }
+  .copy-btn:hover { color: var(--ink); border-color: #c8cace; }
+  .copy-btn:active { transform: scale(.98); }
+  .copy-btn[data-done="1"] { color: #fff; background: var(--accent); border-color: var(--accent); }
+
+  .note {
+    background: var(--amber-bg); border-left: 3px solid #c08a2e; border-radius: 0 10px 10px 0;
+    padding: .95rem 1.1rem; margin: 1.3rem 0;
+  }
+  .note p { margin: 0 0 .6rem; color: var(--amber-ink); font-size: 15px; }
+  .note p:last-child { margin: 0; }
+  .note strong { color: #5f3a0d; font-weight: 600; }
+  code { font-family: var(--mono); font-size: .92em; }
+
+  .end { margin-top: 3.2rem; padding-top: 1.8rem; border-top: 1px solid var(--rule); color: var(--ink-2); }
+  .end p { margin: 0 0 .7rem; font-size: 15.5px; }
+  .end .fine { color: var(--muted); font-size: 13.5px; }
+
+  /* ---------------- 响应式 ---------------- */
+  @media (max-width: 1000px) {
+    .hero-inner { grid-template-columns: minmax(0, 1fr); gap: 2rem; padding: 3rem 1.5rem 3.2rem; }
+    .portrait { order: 2; }
+    .portrait img { max-width: 34rem; }
+    .shell { grid-template-columns: minmax(0, 1fr); gap: 2rem; padding: 2.4rem 1.5rem 5rem; }
+    .tl {
+      position: relative; display: flex; gap: .4rem; overflow-x: auto;
+      padding-bottom: .7rem; border-bottom: 1px solid var(--rule);
+      scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    }
+    .tl::-webkit-scrollbar { display: none; }
+    /* The strip continues off-screen; fade instead of a scrollbar. */
+    .tl::after {
+      content: ''; position: absolute; top: 0; right: 0; bottom: .7rem; width: 2rem;
+      background: linear-gradient(90deg, rgba(247,247,246,0), var(--paper));
+      pointer-events: none;
+    }
+    .tl-head { display: none; }
+    .tl ol { display: flex; gap: .35rem; }
+    .tl li { padding: 0; }
+    .tl li::before, .tl li:last-child::before { display: none; }
+    .tl .dot { display: none; }
+    .tl a {
+      white-space: nowrap; font-size: 13.5px; padding: .35rem .55rem;
+      border: 1px solid var(--rule); border-radius: 7px; background: var(--surface);
+    }
+    .tl li.done a { border-color: var(--accent); color: var(--accent); }
+    .tl li.now a { color: var(--ink); border-color: var(--ink); font-weight: 600; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tl li::before, .tl a, .copy-btn { transition: none; }
+    .copy-btn:active { transform: none; }
+  }
+  @media print {
+    .hero { background: #fff !important; color: #000; }
+    .hero h1, .hero .lede, .kicker, .portrait figcaption { color: #000; }
+    .hero-inner { padding: 0 0 1.5rem; }
+    .tl { display: none; }
+    .shell { display: block; max-width: none; padding: 0; }
+    .step, figure, .note, .who { break-inside: avoid; }
+    .copy-btn { display: none; }
+    a { color: #000; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="hero-inner">
+    <div>
+      <p class="kicker">macOS 安装指引 · 七步 · 约 10 分钟</p>
+      <h1>让本地的文件能被随口问出来</h1>
+      <p class="lede">装完之后，你可以问「去年那份体检报告放哪了」，它会给出文件路径、页码，以及那一页的原文。
+        七个步骤，每步一个动作。</p>
+    </div>
+    <figure class="portrait">
+      <img src="img/hero-shot.png" alt="DeepSeek Harness 官网下载页，macOS 版本在按钮展开的菜单里">
+      <figcaption>官网下载页。macOS 版不在按钮表面上，在右边那个箭头里。</figcaption>
+    </figure>
+  </div>
+</header>
+
+<div class="shell">
+  <nav class="tl" aria-label="步骤索引">
+    <p class="tl-head">进度</p>
+    <ol>
+      <li data-step="s1"><span class="dot">1</span><a href="#s1">下载</a></li>
+      <li data-step="s2"><span class="dot">2</span><a href="#s2">放进应用程序</a></li>
+      <li data-step="s3"><span class="dot">3</span><a href="#s3">登录</a></li>
+      <li data-step="s4"><span class="dot">4</span><a href="#s4">装找文件的功能</a></li>
+      <li data-step="s5"><span class="dot">5</span><a href="#s5">建索引</a></li>
+      <li data-step="s6"><span class="dot">6</span><a href="#s6">等它跑完</a></li>
+      <li data-step="s7"><span class="dot">7</span><a href="#s7">开始用</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <div class="who">
+      <p>写给谁</p>
+      <p>这份指引面向会用 Mac、但没接触过命令行的人。全程点按、拖拽、复制粘贴，不需要打开终端。</p>
+      <p>整个流程装两样东西：DeepSeek Harness（桌面应用）和一个本地文件检索插件。
+        索引和检索都在本机完成，文件不上传。</p>
+      <p>中途出错先往下翻，遇到卡住的地方，把屏幕截图发给出指引给你的人。</p>
+    </div>
+
+    <section class="step" id="s1">
+      <div class="step-head"><span class="step-n">01</span><h2>下载</h2></div>
+      <p class="do">打开 <a href="https://www.deepseek.com/harness/" target="_blank" rel="noopener">www.deepseek.com/harness/</a></p>
+      <p class="do">按钮上写的是「下载 Windows 版」。<b>不要直接点它</b>。它<b>右边的小箭头</b>才是 Mac 版入口，
+        在展开的菜单里选<b>macOS（Apple 芯片）</b>。</p>
+      <p>选完浏览器开始下载，下载列表里会出现一个 .dmg 文件。</p>
+      <figure>
+        <div class="plate is-crop"><img src="img/step-01-menu.png" alt="按钮展开后第一项是 macOS（Apple 芯片），下面是 Windows 64 位"></div>
+        <figcaption>展开菜单的第一行就是。它下面标着需要 macOS 13 或更高版本。</figcaption>
+      </figure>
+      <div class="note">
+        <p><strong>确认芯片型号：</strong>点左上角苹果标志，选「关于本机」，看「芯片」一行。
+          显示 <code>Apple M1 / M2 / M3 / M4</code> 这类，选 Apple 芯片版。</p>
+        <p>若菜单里只有 macOS（Apple 芯片），而你用的是更早的 Intel 机型，先不要下载，告知发指引给你的人。</p>
+      </div>
+    </section>
+
+    <section class="step" id="s2">
+      <div class="step-head"><span class="step-n">02</span><h2>移到「应用程序」</h2></div>
+      <p class="do">双击下载好的 .dmg，弹出一个窗口。把左边的图标<b>拖到右边的「应用程序」文件夹</b>上，松手。</p>
+      <p>拖完关掉这个窗口就行。</p>
+      <figure>
+        <div class="plate">
+          <svg viewBox="0 0 320 130" role="img" aria-label="示意图：把程序图标拖到应用程序文件夹">
+            <rect class="ln" x="28" y="34" width="44" height="44" rx="10"/>
+            <path class="ln" d="M42 56h16M50 48v16"/>
+            <path class="ln" d="M104 56h40" stroke-dasharray="4 5"/>
+            <path class="ac" d="M104 78h28"/>
+            <path class="ac" d="M146 78l-10-6v12z" fill="var(--accent)" stroke="none"/>
+            <path class="ln" d="M196 30h44l10 10v54a6 6 0 0 1-6 6h-48a6 6 0 0 1-6-6V36a6 6 0 0 1 6-6z"/>
+            <path class="ln" d="M240 30v10h10"/>
+            <text class="tx" x="50" y="100" text-anchor="middle">程序图标</text>
+            <text class="tx" x="223" y="112" text-anchor="middle">应用程序</text>
+            <text class="txa" x="128" y="120" text-anchor="middle">拖过去</text>
+          </svg>
+        </div>
+        <figcaption>按住图标不松手，拖到右边文件夹上再松开。</figcaption>
+      </figure>
+    </section>
+
+    <section class="step" id="s3">
+      <div class="step-head"><span class="step-n">03</span><h2>打开并登录</h2></div>
+      <p class="do">在「启动台」或「应用程序」里找到它，双击打开。登录页提供<b>微信扫码</b>，用手机扫一下即可。</p>
+      <div class="note">
+        <p><strong>首次打开可能被 Gatekeeper 拦截</strong>，提示来自身份不明的开发者。</p>
+        <p>去 <strong>系统设置，进入隐私与安全性</strong>，向下滚动，点「仍要打开」，再确认一次。</p>
+      </div>
+      <figure>
+        <div class="plate">
+          <svg viewBox="0 0 320 130" role="img" aria-label="示意图：手机微信扫屏幕上的二维码">
+            <rect class="ln" x="34" y="26" width="72" height="72" rx="8"/>
+            <path class="ln" d="M46 38h12v12H46zM80 38h12v12H80zM46 72h12v12H46z"/>
+            <path class="ac" d="M80 72h6v6h6v6h-12z"/>
+            <rect class="ln" x="196" y="34" width="34" height="60" rx="6"/>
+            <path class="ln" d="M208 88h10M196 50h34"/>
+            <path class="ac" d="M150 64h34"/>
+            <path class="ac" d="M180 58l8 6-8 6z" fill="var(--accent)" stroke="none"/>
+            <text class="tx" x="70" y="112" text-anchor="middle">屏幕上的二维码</text>
+            <text class="tx" x="213" y="112" text-anchor="middle">你的手机</text>
+            <text class="txa" x="163" y="30" text-anchor="middle">扫一下</text>
+          </svg>
+        </div>
+        <figcaption>用手机微信「扫一扫」对准屏幕上的方码。</figcaption>
+      </figure>
+    </section>
+
+    <section class="step" id="s4">
+      <div class="step-head"><span class="step-n">04</span><h2>安装检索插件</h2></div>
+      <p class="do">复制下面这段，粘贴到对话框里发送。安装由 agent 完成，不需要手动操作。</p>
+      <div class="snippet">
+        <pre class="copy" tabindex="0">帮我装一个插件，从这个地址装：
+https://github.com/ZileiC/dsh-file-recall
+
+装好以后告诉我：装在哪、有没有报错。</pre>
+        <button class="copy-btn" type="button" data-copy>复制</button>
+      </div>
+      <p>中途询问是否允许访问文件时，选<strong>允许</strong>。</p>
+      <div class="note">
+        <p><strong>如果它报找不到 node、npm 或 git：</strong>这台机器缺构建工具，不是安装出错。</p>
+        <p>换下面这段，让它改装自带依赖的离线包。首次安装会请求网络访问，之后走本地。</p>
+      </div>
+      <div class="snippet">
+        <pre class="copy" tabindex="0">这台电脑没装 node 和 npm。请用离线包装：
+
+https://github.com/ZileiC/dsh-file-recall/releases/latest
+下载 zip，解压得到 dsh-file-recall 文件夹，从这个文件夹装，不要联网装依赖</pre>
+        <button class="copy-btn" type="button" data-copy>复制</button>
+      </div>
+      <p>两种都失败，把对话截图留档即可，不必反复重试。</p>
+      <figure>
+        <div class="plate">
+          <svg viewBox="0 0 320 130" role="img" aria-label="示意图：把一段话粘进对话框再发送">
+            <rect class="ln" x="22" y="30" width="84" height="58" rx="6"/>
+            <path class="ln" d="M34 44h60M34 56h60M34 68h40"/>
+            <text class="tx" x="64" y="102" text-anchor="middle">浏览器里那段话</text>
+            <path class="ac" d="M118 58h34" stroke-dasharray="5 5"/>
+            <path class="ac" d="M152 52l8 6-8 6z" fill="var(--accent)" stroke="none"/>
+            <rect class="ln" x="176" y="34" width="122" height="50" rx="10"/>
+            <path class="ln" d="M188 50h58M188 64h34"/>
+            <path class="ac" d="M252 76l14-6v12z" fill="var(--accent)" stroke="none"/>
+            <text class="tx" x="237" y="102" text-anchor="middle">粘贴，按回车发送</text>
+          </svg>
+        </div>
+        <figcaption>复制那段话，粘进输入框，回车发送。</figcaption>
+      </figure>
+    </section>
+
+    <section class="step" id="s5">
+      <div class="step-head"><span class="step-n">05</span><h2>建立索引</h2></div>
+      <p class="do">在对话框里说：<b>帮我把资料建成索引。</b></p>
+      <p>它会扫描指定的文件夹并记录内容。文件多时需要等待，<strong>期间不要关闭窗口</strong>。</p>
+      <p>它若问资料在哪个文件夹，而你也不确定位置，回它：</p>
+      <div class="snippet">
+        <pre class="copy" tabindex="0">我不知道在哪个文件夹，你帮我找找</pre>
+        <button class="copy-btn" type="button" data-copy>复制</button>
+      </div>
+      <figure>
+        <div class="plate">
+          <svg viewBox="0 0 320 130" role="img" aria-label="示意图：逐个打开文件读取内容">
+            <path class="ln" d="M36 34h40l8 8v56a6 6 0 0 1-6 6H42a6 6 0 0 1-6-6V40a6 6 0 0 1 6-6z"/>
+            <path class="ln" d="M76 34v8h8"/>
+            <path class="ln" d="M50 56h28M50 68h28M50 80h18"/>
+            <circle class="ac" cx="128" cy="62" r="16"/>
+            <path class="ac" d="M140 74l12 12"/>
+            <path class="ln" d="M170 44h44M170 60h44M170 76h30"/>
+            <rect class="ln" x="222" y="36" width="38" height="52" rx="4"/>
+            <path class="ln" d="M230 52h22M230 64h22M230 76h14"/>
+            <path class="ln" d="M272 36h20v52h-20" stroke-dasharray="3 4"/>
+            <text class="tx" x="60" y="114" text-anchor="middle">你的文件</text>
+            <text class="txa" x="128" y="114" text-anchor="middle">逐个读一遍</text>
+            <text class="tx" x="252" y="114" text-anchor="middle">记住内容</text>
+          </svg>
+        </div>
+        <figcaption>每个文件都会被打开、读取、记录。文件越多，耗时越长。</figcaption>
+      </figure>
+    </section>
+
+    <section class="step" id="s6">
+      <div class="step-head"><span class="step-n">06</span><h2>等待完成</h2></div>
+      <p class="do">结束时它会报出收录的文件数量。看到这条提示就算建好了。</p>
+      <p>首次建立最慢，之后每次查询是秒级。</p>
+      <figure>
+        <div class="plate">
+          <svg viewBox="0 0 320 130" role="img" aria-label="示意图：进度走完，出现完成提示">
+            <rect class="ln" x="40" y="52" width="200" height="14" rx="7"/>
+            <rect class="ac" x="40" y="52" width="152" height="14" rx="7" fill="var(--accent)" stroke="none"/>
+            <path class="ac" d="M258 46l8 8 14-16"/>
+            <text class="tx" x="140" y="44" text-anchor="middle">第一次可能比较久</text>
+            <text class="tx" x="140" y="94" text-anchor="middle">正在处理，走完就完成</text>
+            <text class="txa" x="266" y="94" text-anchor="middle">好了</text>
+          </svg>
+        </div>
+        <figcaption>完成时会报出收录的文件数。看到这条提示之前不要关闭窗口。</figcaption>
+      </figure>
+    </section>
+
+    <section class="step" id="s7">
+      <div class="step-head"><span class="step-n">07</span><h2>开始检索</h2></div>
+      <p class="do">用日常说法描述你记得的片段即可，不需要记文件名：</p>
+      <div class="snippet">
+        <pre class="copy" tabindex="0">帮我找一下去年那份体检报告
+那个讲矩阵的课件在哪
+上次那份合同，带签字的那版</pre>
+        <button class="copy-btn" type="button" data-copy>复制</button>
+      </div>
+      <p>结果会给出文件路径、页码和对应原文，方便核对。</p>
+      <p>如果结果不对，直接说「不是这个」。它会记下这次纠正，同类问题的后续检索会更准。</p>
+      <figure>
+        <div class="plate">
+          <svg viewBox="0 0 320 130" role="img" aria-label="示意图：问一句，回你文件、页码和原文">
+            <rect class="ln" x="26" y="30" width="112" height="44" rx="10"/>
+            <path class="ln" d="M42 46h74M42 58h48"/>
+            <text class="tx" x="82" y="92" text-anchor="middle">你随口问一句</text>
+            <path class="ac" d="M150 52h22"/>
+            <path class="ac" d="M168 46l8 6-8 6z" fill="var(--accent)" stroke="none"/>
+            <rect class="ln" x="190" y="24" width="104" height="70" rx="8"/>
+            <path class="ln" d="M202 40h52M202 52h52M202 64h34"/>
+            <rect x="192" y="66" width="62" height="20" rx="3" fill="var(--accent)"/>
+            <text x="223" y="80" text-anchor="middle" font-size="12" fill="#ffffff"
+                  font-family="ui-monospace, Menlo, monospace">第 3 页</text>
+            <text class="tx" x="242" y="112" text-anchor="middle">文件 + 页码 + 原文</text>
+          </svg>
+        </div>
+        <figcaption>一句提问，返回文件位置、页码和原文片段。</figcaption>
+      </figure>
+    </section>
+
+    <div class="end">
+      <p><strong>出错时：</strong>截图保留现场，连同哪一步出的问题一并记录。不需要排查英文报错，也不需要重装。</p>
+      <p>索引与检索全部在本机进行，文件不会上传到服务器。</p>
+      <p class="fine">除第 1 步的官网截图外，其余配图是按动作画的示意图，不是真实界面截图。</p>
+    </div>
+  </main>
+</div>
+
+<script>
+  (function () {
+    var items = Array.prototype.slice.call(document.querySelectorAll('.tl li'))
+    var steps = items.map(function (li) { return document.getElementById(li.dataset.step) })
+
+    // 时间线是唯一的进度读面：滚过第几步，圆点与连线就填到第几步。
+    function paint() {
+      var line = window.scrollY + window.innerHeight * 0.34
+      var active = 0
+      for (var i = 0; i < steps.length; i += 1) {
+        if (steps[i] && steps[i].offsetTop <= line) active = i
+      }
+      items.forEach(function (li, i) {
+        li.classList.toggle('done', i <= active)
+        li.classList.toggle('now', i === active)
+      })
+    }
+
+    var queued = false
+    window.addEventListener('scroll', function () {
+      if (queued) return
+      queued = true
+      requestAnimationFrame(function () { queued = false; paint() })
+    }, { passive: true })
+    window.addEventListener('resize', paint)
+    paint()
+
+    // 复制：真的复制，失败就选中让人手动复制。
+    document.querySelectorAll('[data-copy]').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var block = btn.parentElement.querySelector('pre.copy')
+        var text = block ? block.textContent : ''
+        function ok() {
+          var old = btn.textContent
+          btn.textContent = '已复制'
+          btn.setAttribute('data-done', '1')
+          setTimeout(function () { btn.textContent = old; btn.removeAttribute('data-done') }, 1800)
+        }
+        function fallback() {
+          if (!block) return
+          var range = document.createRange()
+          range.selectNodeContents(block)
+          var sel = window.getSelection()
+          sel.removeAllRanges()
+          sel.addRange(range)
+          ok()
+        }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(ok, fallback)
+        } else {
+          fallback()
+        }
+      })
+    })
+  })()
+</script>
+</body>
+</html>

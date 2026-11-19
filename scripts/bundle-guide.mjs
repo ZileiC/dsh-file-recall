@@ -29,11 +29,12 @@ const MIME = {
 /**
  * Build the single-file HTML in memory.
  *
- * @param {{ root: string }} input repository root
+ * @param {{ root: string, source?: string }} input repository root, and the page
+ *   to bundle (relative to docs/); defaults to install.html
  * @returns {{ html: string, inlined: Array<{ relPath: string, bytes: number }> }}
  */
-export function buildStandalone({ root }) {
-  const sourcePath = join(root, 'docs', 'install.html')
+export function buildStandalone({ root, source = 'install.html' }) {
+  const sourcePath = join(root, 'docs', source)
   let html = readFileSync(sourcePath, 'utf8')
   const inlined = []
 
@@ -77,22 +78,28 @@ const invokedDirectly =
 
 if (invokedDirectly) {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-  const outPath = join(root, 'docs', 'install-standalone.html')
-  const { html, inlined } = buildStandalone({ root })
-  writeFileSync(outPath, html, 'utf8')
-  console.log(
-    JSON.stringify(
-      {
-        output: outPath,
-        kb: Math.round(statSync(outPath).size / 1024),
-        inlined: inlined.map((entry) => ({
-          path: entry.relPath,
-          kb: Math.round(entry.bytes / 1024),
-        })),
-        externalImageRefs: (html.match(/src="img\//g) || []).length,
-      },
-      null,
-      2,
-    ),
-  )
+  const targets = [
+    { source: 'install.html', output: 'install-standalone.html' },
+    { source: 'install-universal.html', output: 'install-universal-standalone.html' },
+  ]
+  for (const target of targets) {
+    const outPath = join(root, 'docs', target.output)
+    const { html, inlined } = buildStandalone({ root, source: target.source })
+    writeFileSync(outPath, html, 'utf8')
+    console.log(
+      JSON.stringify(
+        {
+          output: outPath,
+          kb: Math.round(statSync(outPath).size / 1024),
+          inlined: inlined.map((entry) => ({
+            path: entry.relPath,
+            kb: Math.round(entry.bytes / 1024),
+          })),
+          externalImageRefs: (html.match(/src="img\//g) || []).length,
+        },
+        null,
+        2,
+      ),
+    )
+  }
 }

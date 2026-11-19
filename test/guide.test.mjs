@@ -17,14 +17,50 @@ import { buildStandalone, findExternalReferences } from '../scripts/bundle-guide
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const sourceHtml = readFileSync(join(root, 'docs', 'install.html'), 'utf8')
 const standaloneHtml = readFileSync(join(root, 'docs', 'install-standalone.html'), 'utf8')
+const universalHtml = readFileSync(join(root, 'docs', 'install-universal.html'), 'utf8')
+const universalStandaloneHtml = readFileSync(
+  join(root, 'docs', 'install-universal-standalone.html'),
+  'utf8',
+)
+
+/** Strip tags so the checks read prose, not markup. */
+function proseOf(html) {
+  return html
+    .replace(/<script[\s\S]*?<\/script>/g, '')
+    .replace(/<style[\s\S]*?<\/style>/g, '')
+    .replace(/<[^>]+>/g, '\n')
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join('\n')
+}
+
+/** Markers that make text read machine-written rather than human-written. */
+function writingTells(text) {
+  return {
+    'em dash': (text.match(/——/g) || []).length,
+    ellipsis: (text.match(/……/g) || []).length,
+    arrow: (text.match(/→/g) || []).length,
+    'halfwidth comma between CJK': (text.match(/[^\x00-\x7F],[^\x00-\x7F]/g) || []).length,
+    'curly quotes': (text.match(/[“”]/g) || []).length,
+    'signposting (让我们/接下来)': (text.match(/让我们|接下来我们/g) || []).length,
+    'template connectives (首先/其次/总之)': (text.match(/首先|其次|总之|综上/g) || []).length,
+    'hype words (赋能/助力/打造)': (text.match(/赋能|助力|打造|护航/g) || []).length,
+  }
+}
 
 test('the deliverable has no local file references at all', () => {
-  const external = findExternalReferences(standaloneHtml)
-  assert.deepEqual(
-    external,
-    [],
-    `single-file build must not reference local files; found: ${external.join(', ')}`,
-  )
+  for (const [name, html] of [
+    ['install-standalone.html', standaloneHtml],
+    ['install-universal-standalone.html', universalStandaloneHtml],
+  ]) {
+    const external = findExternalReferences(html)
+    assert.deepEqual(
+      external,
+      [],
+      `${name} must not reference local files; found: ${external.join(', ')}`,
+    )
+  }
 })
 
 test('every image in the deliverable is a data URI', () => {
@@ -36,14 +72,19 @@ test('every image in the deliverable is a data URI', () => {
 })
 
 test('the committed single file is up to date with the source page', () => {
-  // Rebuild in memory and compare: editing docs/install.html without re-running
-  // the bundler must fail here, not in the recipient's hands.
-  const { html } = buildStandalone({ root })
-  assert.equal(
-    standaloneHtml,
-    html,
-    'docs/install-standalone.html is stale — run: node scripts/bundle-guide.mjs',
-  )
+  // Rebuild in memory and compare: editing a page without re-running the bundler
+  // must fail here, not in the recipient's hands.
+  for (const [source, committed] of [
+    ['install.html', standaloneHtml],
+    ['install-universal.html', universalStandaloneHtml],
+  ]) {
+    const { html } = buildStandalone({ root, source })
+    assert.equal(
+      committed,
+      html,
+      `${source}'s single-file build is stale — run: node scripts/bundle-guide.mjs`,
+    )
+  }
 })
 
 test('the source page keeps its images next to it, and they exist', () => {
@@ -65,4 +106,30 @@ test('the guide offers no command line to the reader', () => {
   for (const [, body] of codeBlocks) {
     assert.doesNotMatch(body, /(^|\n)\s*(sudo|npm|npx|git clone|brew)\b/, `terminal command leaked into the page: ${body.slice(0, 60)}`)
   }
+})
+
+test('both guides read like writing, not like generated text', () => {
+  for (const [name, html] of [
+    ['install.html', sourceHtml],
+    ['install-universal.html', universalHtml],
+  ]) {
+    const tells = Object.entries(writingTells(proseOf(html))).filter(([, count]) => count > 0)
+    assert.deepEqual(tells, [], `${name} still carries machine-writing markers: ${JSON.stringify(tells)}`)
+  }
+})
+
+test('the universal guide addresses a general macOS reader', () => {
+  // It must not assume the father: no family references, and no joke persona.
+  assert.doesNotMatch(universalHtml, /陈孜磊|打工的|老爸|爸/, 'universal copy still talks to one specific person')
+  assert.doesNotMatch(universalHtml, /自我介绍一下/, 'the personal intro belongs to the father version only')
+  // It must still keep the two hard-won instructions.
+  assert.match(universalHtml, /不要直接点它/, 'the Windows button trap must stay explained')
+  assert.match(universalHtml, /releases\/latest/, 'the offline fallback must stay reachable')
+})
+
+test('the universal guide keeps the same structure as the father version', () => {
+  const steps = (html) => [...html.matchAll(/<section class="step" id="(s\d)">/g)].map((m) => m[1])
+  assert.deepEqual(steps(universalHtml), steps(sourceHtml), 'step ids diverged between the two guides')
+  assert.equal((universalHtml.match(/<svg /g) || []).length, (sourceHtml.match(/<svg /g) || []).length)
+  assert.equal((universalHtml.match(/data-copy/g) || []).length, (sourceHtml.match(/data-copy/g) || []).length)
 })
